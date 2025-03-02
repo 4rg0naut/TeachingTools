@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <!-- Chargement CDN PrismJS + thème -->
+    <link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+    <!-- Chargement des langages nécessaires -->
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-css.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-html.min.js"></script>
+</head>
+<body>
+    <pre><code class="language-{{lang}}"></code></pre>
+
+    <script>
+        // Extraction des paramètres URL
+        const params = new URLSearchParams(window.location.search);
+        const code = params.has('code') ? decodeURIComponent(params.get('code')) : '';
+        const lang = params.get('lang') || 'css';
+        
+        // Application dynamique
+        document.querySelector('code').className = `language-${lang}`;
+        document.querySelector('code').textContent = code;
+        
+        // Recharger Prism pour appliquer le highlighting
+        Prism.highlightAll();
+    </script>
+</body>
+</html>
