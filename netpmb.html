@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Convertisseur Netpbm vers Base64</title>
+    <style>
+        :root {
+            --bg-primary: #f5f5f5;
+            --bg-secondary: #ffffff;
+            --bg-accent: #f8f8f8;
+            --bg-accent-blue: #f0f9ff;
+            --text-primary: #1a1a1a;
+            --text-secondary: #333333;
+            --text-muted: #666666;
+            --border-color: #cccccc;
+            --border-color-blue: #bae6fd;
+            --accent-color: #5D5CDE;
+            --accent-hover: #4a49b9;
+            --accent-contrast: #ffffff;
+            --error-color: #dc2626;
+            --hash-label: #0369a1;
+            --hash-value: #0c4a6e;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+        }
+
+        .dark {
+            --bg-primary: #121212;
+            --bg-secondary: #1e1e1e;
+            --bg-accent: #2d2d2d;
+            --bg-accent-blue: #172334;
+            --text-primary: #f3f4f6;
+            --text-secondary: #e5e7eb;
+            --text-muted: #9ca3af;
+            --border-color: #4b5563;
+            --border-color-blue: #1e40af;
+            --accent-color: #6D6CF0;
+            --accent-hover: #5958cb;
+            --accent-contrast: #ffffff;
+            --error-color: #ef4444;
+            --hash-label: #60a5fa;
+            --hash-value: #93c5fd;
+            --shadow-color: rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            line-height: 1.5;
+            padding: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .container {
+            background: var(--bg-secondary);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px var(--shadow-color);
+            position: relative;
+        }
+
+        h1 {
+            color: var(--text-primary);
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+
+        .section {
+            margin-bottom: 24px;
+            padding: 16px;
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            transition: transform 0.2s ease;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .section-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .welcome-section {
+            margin-bottom: 24px;
+        }
+
+        .welcome-section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+
+        .welcome-section p {
+            margin-bottom: 16px;
+            color: var(--text-secondary);
+        }
+
+        .example-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .example-link {
+            padding: 8px 12px;
+            background: var(--accent-color);
+            color: var(--accent-contrast);
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: background-color 0.2s;
+        }
+
+        .example-link:hover {
+            background: var(--accent-hover);
+        }
+
+        .input-section, .output-section {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+        }
+
+        .format-info {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+            resize: vertical;
+            background: var(--bg-accent);
+            color: var(--text-primary);
+        }
+
+        .error {
+            color: var(--error-color);
+            font-size: 0.875rem;
+            margin-top: 8px;
+            display: none;
+        }
+
+        .preview-container {
+            margin-top: 20px;
+        }
+
+        .preview-image {
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            background: var(--bg-accent);
+            border-radius: 4px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .preview-image img {
+            image-rendering: pixelated;
+            max-width: 100%;
+            height: auto;
+        }
+
+        .output-container {
+            position: relative;
+        }
+
+        .img-tag {
+            width: 100%;
+            padding: 12px;
+            background: var(--bg-accent);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            color: var(--text-primary);
+        }
+
+        .btn {
+            padding: 6px 12px;
+            background: var(--accent-color);
+            color: var(--accent-contrast);
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        .btn:hover {
+            background: var(--accent-hover);
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+        }
+
+        .btn-icon {
+            padding: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .color-picker {
+            position: fixed;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            pointer-events: none;
+            display: none;
+            z-index: 1000;
+        }
+
+        .hash-container {
+            margin-top: 12px;
+            padding: 12px;
+            background: var(--bg-accent-blue);
+            border: 1px solid var(--border-color-blue);
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        .hash-label {
+            color: var(--hash-label);
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .hash-value {
+            color: var(--hash-value);
+            font-size: 1rem;
+            word-break: break-all;
+        }
+
+        .header-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .theme-toggle {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            color: var(--text-primary);
+            font-size: 1.5rem;
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 12px;
+            }
+            
+            .container {
+                padding: 16px;
+            }
+            
+            .example-links {
+                flex-direction: column;
+            }
+            
+            .header-controls {
+                position: static;
+                margin-bottom: 20px;
+                justify-content: flex-end;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Netpbm - Editeur léger en ligne pour images pbm, pgm et ppm</h1>
+        <div class="header-controls">
+            <button class="theme-toggle" id="theme-toggle">🌙</button>
+        </div>
+        <div id="app-content">
+            <!-- Le contenu sera généré dynamiquement par JavaScript -->
+        </div>
+    </div>
+
+    <!-- Modèles pour les sections (masqués) -->
+    <template id="input-section-template">
+        <div class="input-section" id="input-section">
+            <label for="input">Code Netpbm (formats P1, P2, P3)</label>
+            <div class="format-info">
+                P1: Portable Bitmap (noir et blanc)<br>
+                P2: Portable Graymap (niveaux de gris)<br>
+                P3: Portable Pixmap (couleur RGB)
+            </div>
+            <textarea id="input" placeholder="Collez votre code Netpbm ici..."></textarea>
+            <div class="error" id="error"></div>
+        </div>
+    </template>
+
+    <template id="preview-section-template">
+        <div class="preview-container" id="preview-container">
+            <div class="preview-image">
+                <h2>Prévisualisation</h2>
+                <img id="preview" alt="Preview" style="width: 280px">
+                <div class="color-picker" id="color-picker"></div>
+            </div>
+        </div>
+    </template>
+
+    <template id="hash-section-template">
+        <div id="hash-section">
+            <div class="hash-container">
+                <div class="hash-label">Code de vérification unique :</div>
+                <div class="hash-value" id="hash-value"></div>
+            </div>
+        </div>
+    </template>
+
+    <template id="output-section-template">
+        <div class="output-container" id="output-section">
+            <h2>Balise IMG avec Base64</h2>
+            <pre class="img-tag" id="img-tag"></pre>
+            <button class="copy-btn btn" id="copy-btn">Copier</button>
+        </div>
+    </template>
+
+    <script>
+        // Configuration du thème sombre/clair
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+            document.getElementById('theme-toggle').textContent = '☀️';
+        }
+        
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+                document.getElementById('theme-toggle').textContent = '☀️';
+            } else {
+                document.documentElement.classList.remove('dark');
+                document.getElementById('theme-toggle').textContent = '🌙';
+            }
+        });
+        
+        function normalizeNetpbm(code) {
+            // Supprime tous les commentaires commençant par #
+            let normalized = code.replace(/#[^\n]*/g, '');
+            
+            // Supprime les espaces multiples, tabs, retours à la ligne
+            normalized = normalized.replace(/\s+/g, ' ').trim();
+            
+            // Sépare les parties principales
+            const parts = normalized.split(' ');
+            
+            // Vérifie le format
+            const format = parts[0];
+            if (!['P1', 'P2', 'P3'].includes(format)) {
+                throw new Error("Format invalide");
+            }
+            
+            // Extrait les dimensions
+            const width = parseInt(parts[1]);
+            const height = parseInt(parts[2]);
+            
+            // Pour P2 et P3
+            let startIndex = 3;
+            let maxVal = "1";
+            if (format !== 'P1') {
+                maxVal = parts[3];
+                startIndex = 4;
+            }
+            
+            // Reconstruit le code normalisé
+            let result = `${format}\n${width} ${height}\n`;
+            if (format !== 'P1') {
+                result += `${maxVal}\n`;
+            }
+            
+            // Ajoute les valeurs avec un formatage cohérent
+            const values = parts.slice(startIndex);
+            if (format === 'P3') {
+                // Groupe par triplets RGB
+                for (let i = 0; i < values.length; i += 3) {
+                    result += `${values[i]} ${values[i+1]} ${values[i+2]}`;
+                    if (i + 3 < values.length) {
+                        result += i % 9 === 6 ? '\n' : ' ';
+                    }
+                }
+            } else {
+                // P1 ou P2 : une valeur par pixel
+                for (let i = 0; i < values.length; i++) {
+                    result += values[i];
+                    if (i + 1 < values.length) {
+                        result += i % width === width-1 ? '\n' : ' ';
+                    }
+                }
+            }
+            
+            return result;
+        }
+
+        async function generateImageHash(code) {
+            try {
+                const normalizedCode = normalizeNetpbm(code);
+                const msgBuffer = new TextEncoder().encode(normalizedCode);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 8);
+            } catch (e) {
+                throw new Error("Code Netpbm invalide");
+            }
+        }
+
+        function parseImageData(content) {
+            const lines = content
+                .trim()
+                .split('\n')
+                .map(line => line.trim())
+                .filter(line => line && !line.startsWith('#'));
+            
+            if(lines.length < 2) throw new Error("Format invalide");
+            
+            const format = lines[0];
+            if(!['P1', 'P2', 'P3'].includes(format)) {
+                throw new Error("Format non supporté (uniquement P1, P2, P3)");
+            }
+            
+            const [width, height] = lines[1].split(/\s+/).map(Number);
+            if(isNaN(width) || isNaN(height)) {
+                throw new Error("Dimensions invalides");
+            }
+
+            let maxVal = 1;
+            let dataStartIndex = 2;
+            if(format !== 'P1') {
+                maxVal = parseInt(lines[2]);
+                if(isNaN(maxVal)) throw new Error("Valeur maximale invalide");
+                dataStartIndex = 3;
+            }
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            const imageData = ctx.createImageData(width, height);
+            const data = imageData.data;
+            
+            const values = lines
+                .slice(dataStartIndex)
+                .join(' ')
+                .split(/\s+/)
+                .map(v => parseInt(v));
+            
+            let valueIndex = 0;
+            const totalPixels = width * height;
+
+            for(let pixelIndex = 0; pixelIndex < totalPixels; pixelIndex++) {
+                const dataIndex = pixelIndex * 4;
+
+                if(format === 'P1') {
+                    const val = values[pixelIndex];
+                    const color = val === 1 ? 0 : 255;
+                    data[dataIndex] = color;
+                    data[dataIndex + 1] = color;
+                    data[dataIndex + 2] = color;
+                    data[dataIndex + 3] = 255;
+                }
+                else if(format === 'P2') {
+                    const gray = Math.round((values[pixelIndex] / maxVal) * 255);
+                    data[dataIndex] = gray;
+                    data[dataIndex + 1] = gray;
+                    data[dataIndex + 2] = gray;
+                    data[dataIndex + 3] = 255;
+                }
+                else if(format === 'P3') {
+                    if(valueIndex + 2 >= values.length) {
+                        throw new Error("Données RGB incomplètes");
+                    }
+                    const r = Math.round((values[valueIndex++] / maxVal) * 255);
+                    const g = Math.round((values[valueIndex++] / maxVal) * 255);
+                    const b = Math.round((values[valueIndex++] / maxVal) * 255);
+                    data[dataIndex] = r;
+                    data[dataIndex + 1] = g;
+                    data[dataIndex + 2] = b;
+                    data[dataIndex + 3] = 255;
+                }
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+            return canvas.toDataURL('image/png');
+        }
+
+        // Sections de l'application
+        const SECTIONS = {
+            welcome: { 
+                id: "welcome-section", 
+                title: "Bienvenue", 
+                createElement: createWelcomeSection 
+            },
+            input: { 
+                id: "input-section", 
+                title: "Entrée", 
+                templateId: "input-section-template" 
+            },
+            preview: { 
+                id: "preview-container", 
+                title: "Prévisualisation", 
+                templateId: "preview-section-template" 
+            },
+            hash: { 
+                id: "hash-section", 
+                title: "Vérification", 
+                templateId: "hash-section-template" 
+            },
+            output: { 
+                id: "output-section", 
+                title: "Sortie", 
+                templateId: "output-section-template" 
+            }
+        };
+        
+        // Paramètres URL
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        // Configuration actuelle
+        const config = {
+            sections: urlParams.get('sections') ? urlParams.get('sections').split(',') : [],
+            code: urlParams.get('code') || '',
+            picker: urlParams.get('picker') === 'true',
+            edit: urlParams.get('edit') !== 'false' // Par défaut en mode édition sauf si explicitement désactivé
+        };
+        
+        function createWelcomeSection() {
+            const section = document.createElement('div');
+            section.id = 'welcome-section';
+            section.className = 'welcome-section';
+            
+            const content = `
+                <h2>Découvrez les formats Netpbm</h2>
+                <p>
+                    Cet outil vous permet d'explorer les formats d'image textuels Netpbm (PBM, PGM, PPM) 
+                    et de les convertir en Base64 pour une utilisation web.
+                </p>
+                <p>
+                    Les formats Netpbm sont d'excellents outils pédagogiques pour comprendre les fondamentaux 
+                    des images numériques, car ils peuvent être écrits et lus sous forme de simples fichiers texte.
+                </p>
+                <h3>Exemples d'utilisation :</h3>
+                <div class="example-links">
+                    <a href="?sections=input,preview&picker=true" class="example-link">Saisie et prévisualisation</a>
+                    <a href="?sections=input,preview,hash" class="example-link">Avec vérification</a>
+                    <a href="?sections=preview,input,output" class="example-link">Ordre personnalisé</a>
+                    <a href="?sections=input,preview,output,hash&code=UDMKMyAyCjI1NQoyNTUgMCAwIDAgMjU1IDAgMjU1IDAgMCAKMjU1IDAgMCAwIDI1NSAwIDI1NSAwIDA=" class="example-link">Exemple complet</a>
+                    <a href="?sections=input,preview,output,hash&code=UDMKMyAyCjI1NQoyNTUgMCAwIDAgMjU1IDAgMjU1IDAgMCAKMjU1IDAgMCAwIDI1NSAwIDI1NSAwIDA=&edit=false" class="example-link">Mode figé (partage)</a>
+                </div>
+            `;
+            
+            section.innerHTML = content;
+            return section;
+        }
+        
+        // Fonction pour initialiser l'interface utilisateur
+        function initUI() {
+            const appContent = document.getElementById('app-content');
+            appContent.innerHTML = ''; // Vider le contenu existant
+            
+            // Ajouter un bouton d'édition si nous sommes en mode édition
+            if (config.edit) {
+                // Créer le bouton d'édition pour passer en mode partage
+                const editButton = document.createElement('button');
+                editButton.className = 'btn';
+                editButton.style.marginBottom = '20px';
+                editButton.textContent = 'Générer lien de partage (sans contrôles)';
+                editButton.addEventListener('click', function() {
+                    // Créer une URL sans le mode édition
+                    const shareURL = new URL(window.location.href);
+                    shareURL.searchParams.set('edit', 'false');
+                    
+                    // Copier dans le presse-papiers et informer l'utilisateur
+                    navigator.clipboard.writeText(shareURL.toString())
+                        .then(() => alert('Lien de partage copié dans le presse-papiers !'))
+                        .catch(() => {
+                            // Si la copie échoue, afficher l'URL pour permettre la copie manuelle
+                            alert(`Impossible de copier automatiquement. Voici le lien de partage :\n\n${shareURL.toString()}`);
+                        });
+                });
+                appContent.appendChild(editButton);
+            }
+            
+            // Si aucune section n'est spécifiée, affiche la section de bienvenue
+            if (config.sections.length === 0) {
+                const welcomeSection = createWelcomeSection();
+                appContent.appendChild(welcomeSection);
+                return;
+            }
+            
+            // Crée et affiche les sections selon l'ordre spécifié dans l'URL
+            config.sections.forEach(sectionKey => {
+                if (SECTIONS[sectionKey]) {
+                    const sectionInfo = SECTIONS[sectionKey];
+                    let sectionContent;
+                    
+                    // Créer le contenu de la section
+                    if (sectionInfo.createElement) {
+                        // Utiliser la fonction de création si disponible
+                        sectionContent = sectionInfo.createElement();
+                    } else if (sectionInfo.templateId) {
+                        // Cloner depuis un template
+                        const template = document.getElementById(sectionInfo.templateId);
+                        if (template) {
+                            sectionContent = document.importNode(template.content, true).firstElementChild;
+                        }
+                    }
+                    
+                    if (sectionContent) {
+                        // Créer le conteneur de section
+                        const section = document.createElement('div');
+                        section.className = 'section';
+                        section.id = `section-${sectionInfo.id}`;
+                        
+                        // Ajouter l'en-tête de section
+                        const header = document.createElement('div');
+                        header.className = 'section-header';
+                        
+                        // Si en mode édition, ajouter les contrôles de réorganisation
+                        if (config.edit) {
+                            header.innerHTML = `
+                                <div class="section-title">${sectionInfo.title}</div>
+                                <div class="section-controls">
+                                    <button class="btn btn-icon move-up" title="Monter">▲</button>
+                                    <button class="btn btn-icon move-down" title="Descendre">▼</button>
+                                </div>
+                            `;
+                        } else {
+                            header.innerHTML = `<div class="section-title">${sectionInfo.title}</div>`;
+                        }
+                        
+                        section.appendChild(header);
+                        
+                        // Ajouter le contenu de la section
+                        section.appendChild(sectionContent);
+                        appContent.appendChild(section);
+                    }
+                }
+            });
+            
+            // Ajouter les écouteurs d'événements pour les boutons de déplacement si en mode édition
+            if (config.edit) {
+                document.querySelectorAll('.move-up').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const section = this.closest('.section');
+                        const prev = section.previousElementSibling;
+                        if (prev && !prev.classList.contains('btn')) { // Éviter de déplacer au-dessus du bouton
+                            section.parentNode.insertBefore(section, prev);
+                            updateUrlFromUI();
+                        }
+                    });
+                });
+                
+                document.querySelectorAll('.move-down').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const section = this.closest('.section');
+                        const next = section.nextElementSibling;
+                        if (next) {
+                            section.parentNode.insertBefore(next, section);
+                            updateUrlFromUI();
+                        }
+                    });
+                });
+            }
+            
+            // Configurer les écouteurs d'événements pour les éléments d'entrée
+            const input = document.getElementById('input');
+            if (input) {
+                input.addEventListener('input', function() {
+                    handleInput(this.value);
+                });
+                
+                // Pré-remplissage du code si fourni
+                if (config.code) {
+                    try {
+                        const decodedCode = atob(config.code);
+                        input.value = decodedCode;
+                        handleInput(decodedCode);
+                    } catch (e) {
+                        const error = document.getElementById('error');
+                        if (error) {
+                            error.textContent = "Code en Base64 invalide";
+                            error.style.display = 'block';
+                        }
+                    }
+                }
+            }
+            
+            // Configurer l'écouteur pour le bouton de copie
+            const copyBtn = document.getElementById('copy-btn');
+            if (copyBtn) {
+                copyBtn.addEventListener('click', function() {
+                    const imgTag = document.getElementById('img-tag');
+                    navigator.clipboard.writeText(imgTag.textContent)
+                        .then(() => alert('Copié dans le presse-papiers !'))
+                        .catch(() => alert('Erreur lors de la copie'));
+                });
+            }
+            
+            // Configurer la pipette de couleurs si activée
+            if (config.picker) {
+                setupColorPicker();
+            }
+        }
+        
+        // Fonction pour mettre à jour l'URL en fonction de l'état de l'interface
+        function updateUrlFromUI() {
+            const sections = [];
+            document.querySelectorAll('.section').forEach(section => {
+                const id = section.id.replace('section-', '');
+                // Trouver la clé de section correspondant à cet ID
+                for (const [key, value] of Object.entries(SECTIONS)) {
+                    if (value.id === id) {
+                        sections.push(key);
+                        break;
+                    }
+                }
+            });
+            
+            const newURL = new URL(window.location.href);
+            
+            // Mise à jour des paramètres
+            if (sections.length > 0) {
+                newURL.searchParams.set('sections', sections.join(','));
+            } else {
+                newURL.searchParams.delete('sections');
+            }
+            
+            if (config.picker) {
+                newURL.searchParams.set('picker', 'true');
+            } else {
+                newURL.searchParams.delete('picker');
+            }
+            
+            // Conserver le mode d'édition actuel dans l'URL
+            if (!config.edit) {
+                newURL.searchParams.set('edit', 'false');
+            }
+            
+            const input = document.getElementById('input');
+            if (input && input.value.trim()) {
+                const base64Content = btoa(input.value);
+                newURL.searchParams.set('code', base64Content);
+            } else {
+                newURL.searchParams.delete('code');
+            }
+            
+            // Mise à jour de l'URL sans recharger la page
+            window.history.replaceState({}, '', newURL.toString());
+        }
+
+        async function handleInput(content) {
+            const error = document.getElementById('error');
+            const preview = document.getElementById('preview');
+            const imgTag = document.getElementById('img-tag');
+            const hashValue = document.getElementById('hash-value');
+            
+            if(!content.trim()) {
+                if (error) error.style.display = 'none';
+                return;
+            }
+            
+            try {
+                const dataUrl = parseImageData(content);
+                
+                // Mettre à jour l'aperçu si disponible
+                if (preview) {
+                    preview.src = dataUrl;
+                }
+                
+                // Mettre à jour la balise img si disponible
+                if (imgTag) {
+                    imgTag.textContent = `<img src="${dataUrl}" alt="Converted image" />`;
+                }
+                
+                // Masquer l'erreur si disponible
+                if (error) {
+                    error.style.display = 'none';
+                }
+                
+                // Mise à jour de l'URL et du hash
+                updateUrlFromUI();
+                
+                // Génération et affichage du hash si l'élément existe
+                if (hashValue) {
+                    const imageHash = await generateImageHash(content);
+                    hashValue.textContent = imageHash;
+                }
+                
+            } catch (err) {
+                // Afficher l'erreur si l'élément existe
+                if (error) {
+                    error.textContent = err.message;
+                    error.style.display = 'block';
+                }
+            }
+        }
+
+        // Configuration de la pipette de couleurs
+        function setupColorPicker() {
+            const preview = document.getElementById('preview');
+            const colorPicker = document.getElementById('color-picker');
+            
+            if (!preview || !colorPicker) return;
+            
+            let canvas = document.createElement('canvas');
+            let ctx = canvas.getContext('2d');
+
+            preview.addEventListener('load', function() {
+                canvas.width = preview.naturalWidth;
+                canvas.height = preview.naturalHeight;
+                ctx.drawImage(preview, 0, 0);
+            });
+
+            preview.addEventListener('mousemove', function(e) {
+                const rect = preview.getBoundingClientRect();
+                const x = (e.clientX - rect.left) * (preview.naturalWidth / rect.width);
+                const y = (e.clientY - rect.top) * (preview.naturalHeight / rect.height);
+                
+                const pixel = ctx.getImageData(Math.floor(x), Math.floor(y), 1, 1).data;
+                colorPicker.textContent = `RGB(${pixel[0]}, ${pixel[1]}, ${pixel[2]})`;
+                colorPicker.style.display = 'block';
+                colorPicker.style.left = (e.clientX + 10) + 'px';
+                colorPicker.style.top = (e.clientY + 10) + 'px';
+            });
+
+            preview.addEventListener('mouseout', function() {
+                colorPicker.style.display = 'none';
+            });
+        }
+        
+        // Fonction principale pour initialiser l'application
+        function initApp() {
+            // Initialiser l'UI
+            initUI();
+            
+            // Ajouter l'écouteur d'événements pour le bouton toggle thème
+            document.getElementById('theme-toggle').addEventListener('click', function() {
+                if (document.documentElement.classList.contains('dark')) {
+                    document.documentElement.classList.remove('dark');
+                    this.textContent = '🌙';
+                } else {
+                    document.documentElement.classList.add('dark');
+                    this.textContent = '☀️';
+                }
+            });
+        }
+        
+        // Démarrer l'application quand le DOM est chargé
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
