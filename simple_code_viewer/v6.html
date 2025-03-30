@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Convertisseur Code → HTML Optimisé</title>
+    <style>
+        :root {
+            --primary: #4CAF50;
+            --secondary: #607d8b;
+            --border: #ddd;
+            --bg-light: #f9f9f9;
+            --bg-code: #f5f5f5;
+            --text: #333;
+        }
+        body { font-family: system-ui; max-width: 800px; margin: 0 auto; padding: 20px; }
+        textarea, pre { width: 100%; height: 280px; border: 1px solid var(--border); padding: 10px; box-sizing: border-box; }
+        textarea { font-family: monospace; }
+        pre { background: var(--bg-code); overflow: auto; }
+        .controls { margin: 15px 0; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+        button { padding: 8px 12px; background: var(--primary); color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { filter: brightness(1.1); }
+        h1, h3 { color: var(--text); }
+        .toggle-colors { background: var(--secondary); margin-left: auto; }
+        
+        .color-editor { margin: 15px 0; padding: 15px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-light); }
+        .color-row { display: flex; align-items: center; margin-bottom: 8px; }
+        .color-name { width: 120px; font-size: 14px; }
+        .color-preview { width: 24px; height: 24px; border: 1px solid #ccc; margin-right: 10px; }
+        .color-input, select { padding: 4px; border: 1px solid var(--border); border-radius: 4px; }
+        .color-input { width: 100px; }
+        .color-sample { margin-left: 10px; padding: 3px 6px; border-radius: 3px; font-family: monospace; }
+        
+        .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 15px; }
+        .tab { padding: 8px 16px; cursor: pointer; border: 1px solid transparent; margin-bottom: -1px; border-radius: 4px 4px 0 0; }
+        .tab.active { border: 1px solid var(--border); border-bottom-color: white; background: white; font-weight: bold; }
+        .tabs-content > div { display: none; }
+        .tabs-content > div.active { display: block; }
+        
+        .theme-presets { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+        .theme-preset { padding: 5px 10px; background: #eee; border-radius: 4px; cursor: pointer; font-size: 13px; border: 1px solid var(--border); }
+        .theme-preset:hover { background: #e0e0e0; }
+        
+        .custom-theme-actions { display: flex; gap: 10px; margin-top: 10px; }
+        #font-family { width: 200px; }
+    </style>
+</head>
+<body>
+    <h1>Convertisseur Code → HTML</h1>
+    <p>Génère du HTML avec styles inline pour les éditeurs qui filtrent les classes CSS.</p>
+    
+    <div class="controls">
+        <select id="language"></select>
+        <button id="convert-btn">Convertir</button>
+        <button id="copy-btn">Copier le code</button>
+        <button id="toggle-colors-btn" class="toggle-colors">Personnaliser les couleurs</button>
+    </div>
+    
+    <div id="color-editor" class="color-editor" style="display:none;">
+        <div class="tabs">
+            <div id="tab-themes" class="tab active" data-tab="themes">Thèmes prédéfinis</div>
+            <div id="tab-colors" class="tab" data-tab="colors">Couleurs individuelles</div>
+        </div>
+        
+        <div class="tabs-content">
+            <div id="content-themes" class="active">
+                <p>Sélectionnez un thème prédéfini ou personnalisez vos propres couleurs.</p>
+                <div id="theme-presets" class="theme-presets"></div>
+                
+                <div class="custom-theme-actions">
+                    <button id="save-theme-btn">Sauvegarder le thème</button>
+                    <button id="load-theme-btn">Charger le thème</button>
+                </div>
+            </div>
+            
+            <div id="content-colors">
+                <p>Personnalisez les couleurs pour chaque type d'élément syntaxique.</p>
+                <div id="color-controls"></div>
+            </div>
+        </div>
+    </div>
+    
+    <textarea id="code" spellcheck="false"></textarea>
+    
+    <h3>HTML généré</h3>
+    <pre id="output"></pre>
+    
+    <h3>Prévisualisation</h3>
+    <div id="preview"></div>
+
+    <script>
+    class CodeConverter {
+        constructor() {
+            // Base configuration
+            const baseTheme = {
+                fontSize: '14px',
+                lineHeight: '1.5',
+                fontFamily: "Consolas, Monaco, monospace"
+            };
+            
+            // Configuration
+            this.config = {
+                // Theme definitions
+                themes: {
+                    default: Object.assign({}, baseTheme, {
+                        selector: '#690', punctuation: '#999', property: '#905',
+                        comment: '#708090', string: '#690', keyword: '#07a',
+                        function: '#DD4A68', variable: '#e90', number: '#905',
+                        background: '#f5f5f5'
+                    }),
+                    dark: Object.assign({}, baseTheme, {
+                        selector: '#a6e22e', punctuation: '#f8f8f2', property: '#f92672',
+                        comment: '#75715e', string: '#e6db74', keyword: '#66d9ef',
+                        function: '#fd971f', variable: '#fd971f', number: '#ae81ff',
+                        background: '#282a36', fontFamily: "'Source Code Pro', monospace"
+                    }),
+                    pastel: Object.assign({}, baseTheme, {
+                        selector: '#8ec07c', punctuation: '#928374', property: '#d3869b',
+                        comment: '#928374', string: '#b8bb26', keyword: '#83a598',
+                        function: '#fe8019', variable: '#fabd2f', number: '#d3869b',
+                        background: '#fbf1c7'
+                    }),
+                    monochrome: Object.assign({}, baseTheme, {
+                        selector: '#555', punctuation: '#777', property: '#333',
+                        comment: '#999', string: '#444', keyword: '#222',
+                        function: '#444', variable: '#555', number: '#333',
+                        background: '#f8f8f8'
+                    })
+                },
+                
+                // Color control definitions
+                colorControls: [
+                    { id: 'selector', name: 'Sélecteurs, Tags', sample: '.container, div' },
+                    { id: 'punctuation', name: 'Ponctuation', sample: '{} () ; ,' },
+                    { id: 'property', name: 'Propriétés', sample: 'display, color' },
+                    { id: 'comment', name: 'Commentaires', sample: '/* commentaire */' },
+                    { id: 'string', name: 'Chaînes', sample: "'texte' \"exemple\"" },
+                    { id: 'keyword', name: 'Mots-clés', sample: 'if, return, class' },
+                    { id: 'function', name: 'Fonctions', sample: 'functionName()' },
+                    { id: 'variable', name: 'Variables', sample: '$var, myVariable' },
+                    { id: 'number', name: 'Nombres', sample: '42, 3.14' },
+                    { id: 'background', name: 'Arrière-plan', sample: '' }
+                ],
+                
+                // Font options
+                fontOptions: [
+                    { value: "Consolas, Monaco, monospace", label: "Consolas/Monaco" },
+                    { value: "'Source Code Pro', monospace", label: "Source Code Pro" },
+                    { value: "'Fira Code', monospace", label: "Fira Code" },
+                    { value: "'JetBrains Mono', monospace", label: "JetBrains Mono" },
+                    { value: "monospace", label: "Monospace standard" }
+                ],
+                
+                // Font sizes
+                fontSizes: ['12px', '14px', '16px', '18px'],
+                
+                // Supported languages
+                languages: [
+                    { value: 'css', label: 'CSS' },
+                    { value: 'html', label: 'HTML' },
+                    { value: 'javascript', label: 'JavaScript' },
+                    { value: 'python', label: 'Python' },
+                    { value: 'bash', label: 'Bash' },
+                    { value: 'sql', label: 'SQL' },
+                    { value: 'php', label: 'PHP' }
+                ],
+                
+                // Code examples by language
+                examples: {
+                    css: `.container {\n    display: flex;\n    flex-direction: column;\n    margin: 0 auto;\n    max-width: 800px;\n}\n\n/* Styles pour le titre */\nh1 {\n    color: #2c3e50;\n    font-family: 'Arial', sans-serif;\n    text-align: center;\n}`,
+                    html: `<!DOCTYPE html>\n<html>\n<head>\n    <title>Page simple</title>\n</head>\n<body>\n    <h1>Titre principal</h1>\n    <p>Un paragraphe d'exemple avec du <strong>texte en gras</strong>.</p>\n</body>\n</html>`,
+                    javascript: `// Fonction simple\nfunction saluer(nom) {\n    return \`Bonjour, \${nom}!\`;\n}\n\n// Utilisation\nconsole.log(saluer('monde'));`,
+                    python: `# Définition d'une fonction\ndef fibonacci(n):\n    a, b = 0, 1\n    for _ in range(n):\n        yield a\n        a, b = b, a + b\n\n# Utilisation\nfor n in fibonacci(5):\n    print(n)`,
+                    bash: `#!/bin/bash\n\n# Variables\nNOM="monde"\n\n# Affichage\necho "Bonjour, $NOM!"`,
+                    sql: `-- Création d'une table\nCREATE TABLE users (\n    id INT PRIMARY KEY,\n    nom VARCHAR(50)\n);\n\n-- Insertion\nINSERT INTO users VALUES (1, 'Jean');`,
+                    php: `<?php\n// Fonction simple\nfunction saluer($nom) {\n    return "Bonjour, $nom!";\n}\n\n// Utilisation\necho saluer("monde");\n?>`
+                }
+            };
+            
+            // State
+            this.state = {
+                activeTheme: {},
+                language: 'css',
+                loadedResources: new Set(['html', 'css', 'javascript', 'js'])
+            };
+            
+            // Resource loading cache
+            this.resourcePromises = {};
+            
+            // Initialize
+            this.init();
+        }
+        
+        /**
+         * Initialize the application
+         */
+        init() {
+            // Load default theme
+            this.loadTheme('default');
+            
+            // Generate UI
+            this.generateUI();
+            
+            // Bind events
+            this.bindEvents();
+            
+            // Load initial example
+            this.setLanguage('css');
+        }
+        
+        /**
+         * Generate all UI elements
+         */
+        generateUI() {
+            this.generateLanguageSelector();
+            this.generateThemePresets();
+            this.generateColorControls();
+            this.generateFontControls();
+        }
+        
+        /**
+         * Generate language selector
+         */
+        generateLanguageSelector() {
+            const select = document.getElementById('language');
+            select.innerHTML = this.config.languages.map(lang => 
+                `<option value="${lang.value}">${lang.label}</option>`
+            ).join('');
+        }
+        
+        /**
+         * Generate theme presets
+         */
+        generateThemePresets() {
+            const container = document.getElementById('theme-presets');
+            container.innerHTML = Object.keys(this.config.themes).map(theme => 
+                `<div class="theme-preset" data-theme="${theme}">${theme.charAt(0).toUpperCase() + theme.slice(1)}</div>`
+            ).join('');
+        }
+        
+        /**
+         * Generate color controls
+         */
+        generateColorControls() {
+            const container = document.getElementById('color-controls');
+            
+            // Generate color controls
+            container.innerHTML = this.config.colorControls.map(control => {
+                const colorValue = this.state.activeTheme[control.id] || '#000000';
+                return `
+                    <div class="color-row">
+                        <div class="color-name">${control.name}</div>
+                        <div id="preview-${control.id}" class="color-preview" style="background-color:${colorValue}"></div>
+                        <input type="color" class="color-input" id="color-${control.id}" value="${colorValue}" data-type="${control.id}">
+                        ${control.sample ? `<span id="sample-${control.id}" class="color-sample" style="color:${colorValue}">${control.sample}</span>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        /**
+         * Generate font controls
+         */
+        generateFontControls() {
+            const container = document.getElementById('color-controls');
+            
+            // Font family control
+            const fontRow = document.createElement('div');
+            fontRow.className = 'color-row';
+            fontRow.innerHTML = `
+                <div class="color-name">Police</div>
+                <select id="font-family" class="color-input">
+                    ${this.config.fontOptions.map(option => 
+                        `<option value="${option.value}" ${option.value === this.state.activeTheme.fontFamily ? 'selected' : ''}>${option.label}</option>`
+                    ).join('')}
+                </select>
+            `;
+            container.appendChild(fontRow);
+            
+            // Font size control
+            const sizeRow = document.createElement('div');
+            sizeRow.className = 'color-row';
+            sizeRow.innerHTML = `
+                <div class="color-name">Taille</div>
+                <select id="font-size" class="color-input">
+                    ${this.config.fontSizes.map(size => 
+                        `<option value="${size}" ${size === this.state.activeTheme.fontSize ? 'selected' : ''}>${size}</option>`
+                    ).join('')}
+                </select>
+            `;
+            container.appendChild(sizeRow);
+        }
+        
+        /**
+         * Bind all event handlers using event delegation
+         */
+        bindEvents() {
+            // Main controls
+            document.getElementById('convert-btn').addEventListener('click', () => this.convert());
+            document.getElementById('copy-btn').addEventListener('click', () => this.copyOutput());
+            document.getElementById('toggle-colors-btn').addEventListener('click', () => this.toggleColorEditor());
+            document.getElementById('language').addEventListener('change', e => this.setLanguage(e.target.value));
+            
+            // Color editor - tab switching using event delegation
+            document.querySelector('.tabs').addEventListener('click', e => {
+                if (e.target.classList.contains('tab')) {
+                    this.switchTab(e.target.dataset.tab);
+                }
+            });
+            
+            // Theme presets using event delegation
+            document.getElementById('theme-presets').addEventListener('click', e => {
+                if (e.target.classList.contains('theme-preset')) {
+                    this.loadTheme(e.target.dataset.theme);
+                }
+            });
+            
+            // Color inputs using event delegation
+            document.getElementById('color-controls').addEventListener('input', e => {
+                if (e.target.classList.contains('color-input') && e.target.dataset.type) {
+                    this.updateThemeSetting(e.target.dataset.type, e.target.value);
+                }
+            });
+            
+            // Font controls
+            document.getElementById('font-family').addEventListener('change', e => 
+                this.updateThemeSetting('fontFamily', e.target.value)
+            );
+            
+            document.getElementById('font-size').addEventListener('change', e => 
+                this.updateThemeSetting('fontSize', e.target.value)
+            );
+            
+            // Theme management buttons
+            document.getElementById('save-theme-btn').addEventListener('click', () => this.saveTheme());
+            document.getElementById('load-theme-btn').addEventListener('click', () => this.loadSavedTheme());
+        }
+        
+        /**
+         * Set the current language and load its example
+         */
+        setLanguage(language) {
+            this.state.language = language;
+            document.getElementById('code').value = this.config.examples[language] || '';
+            this.convert();
+        }
+        
+        /**
+         * Update a theme setting and refresh the preview
+         */
+        updateThemeSetting(property, value) {
+            // Update theme property
+            this.state.activeTheme[property] = value;
+            
+            // Update UI elements
+            if (property !== 'fontFamily' && property !== 'fontSize') {
+                // Update color preview if applicable
+                const preview = document.getElementById(`preview-${property}`);
+                if (preview) {
+                    preview.style.backgroundColor = value;
+                }
+                
+                // Update sample text if applicable
+                const sample = document.getElementById(`sample-${property}`);
+                if (sample) {
+                    sample.style.color = value;
+                }
+            }
+            
+            // Update code preview if available
+            this.applyStyles();
+        }
+        
+        /**
+         * Apply theme styles to the preview
+         */
+        applyStyles() {
+            const preElement = document.querySelector('#preview pre');
+            if (preElement) {
+                preElement.style.backgroundColor = this.state.activeTheme.background;
+                preElement.style.fontFamily = this.state.activeTheme.fontFamily;
+                preElement.style.fontSize = this.state.activeTheme.fontSize;
+                preElement.style.lineHeight = this.state.activeTheme.lineHeight;
+            }
+        }
+        
+        /**
+         * Convert code to HTML and display it
+         */
+        async convert() {
+            const code = document.getElementById('code').value;
+            
+            try {
+                // Disable the button while processing
+                document.getElementById('convert-btn').disabled = true;
+                
+                // Generate HTML with syntax highlighting
+                const html = await this.generateInlineCodeHTML(code, this.state.language);
+                
+                // Update output and preview
+                document.getElementById('output').textContent = html;
+                document.getElementById('preview').innerHTML = html;
+                
+                // Apply additional styles
+                this.applyStyles();
+            } catch (error) {
+                document.getElementById('output').textContent = `Error: ${error.message}`;
+                console.error(error);
+            } finally {
+                document.getElementById('convert-btn').disabled = false;
+            }
+        }
+        
+        /**
+         * Copy the output HTML to clipboard
+         */
+        copyOutput() {
+            navigator.clipboard.writeText(document.getElementById('output').textContent)
+                .then(() => {
+                    const btn = document.getElementById('copy-btn');
+                    const original = btn.textContent;
+                    btn.textContent = '✓ Copié!';
+                    setTimeout(() => btn.textContent = original, 1500);
+                })
+                .catch(() => alert('Impossible de copier. Veuillez copier manuellement.'));
+        }
+        
+        /**
+         * Toggle the visibility of the color editor
+         */
+        toggleColorEditor() {
+            const editor = document.getElementById('color-editor');
+            editor.style.display = editor.style.display === 'none' ? 'block' : 'none';
+            
+            // Update button text
+            const btn = document.getElementById('toggle-colors-btn');
+            btn.textContent = editor.style.display === 'none' ? 'Personnaliser les couleurs' : 'Masquer l\'éditeur';
+        }
+        
+        /**
+         * Switch between tabs in the color editor
+         */
+        switchTab(tabId) {
+            document.querySelectorAll('.tab').forEach(tab => 
+                tab.classList.toggle('active', tab.dataset.tab === tabId)
+            );
+            
+            document.querySelectorAll('.tabs-content > div').forEach(content => 
+                content.classList.toggle('active', content.id === `content-${tabId}`)
+            );
+        }
+        
+        /**
+         * Load a theme by name
+         */
+        loadTheme(themeName) {
+            if (!this.config.themes[themeName]) return;
+            
+            // Copy theme to avoid modifying the original
+            this.state.activeTheme = JSON.parse(JSON.stringify(this.config.themes[themeName]));
+            
+            // Update UI
+            this.updateAllControls();
+            
+            // Update preview
+            this.convert();
+        }
+        
+        /**
+         * Update all UI controls to match the current theme
+         */
+        updateAllControls() {
+            // Update color controls
+            this.generateColorControls();
+            
+            // Update font selectors
+            const fontSelect = document.getElementById('font-family');
+            const sizeSelect = document.getElementById('font-size');
+            
+            if (fontSelect && this.state.activeTheme.fontFamily) {
+                Array.from(fontSelect.options).some((option, i) => {
+                    if (option.value === this.state.activeTheme.fontFamily) {
+                        fontSelect.selectedIndex = i;
+                        return true;
+                    }
+                    return false;
+                });
+            }
+            
+            if (sizeSelect && this.state.activeTheme.fontSize) {
+                Array.from(sizeSelect.options).some((option, i) => {
+                    if (option.value === this.state.activeTheme.fontSize) {
+                        sizeSelect.selectedIndex = i;
+                        return true;
+                    }
+                    return false;
+                });
+            }
+        }
+        
+        /**
+         * Save the current theme to localStorage
+         */
+        saveTheme() {
+            try {
+                localStorage.setItem('customCodeTheme', JSON.stringify(this.state.activeTheme));
+                alert('Thème sauvegardé avec succès!');
+            } catch (e) {
+                alert('Erreur: ' + e.message);
+            }
+        }
+        
+        /**
+         * Load a saved theme from localStorage
+         */
+        loadSavedTheme() {
+            try {
+                const saved = localStorage.getItem('customCodeTheme');
+                if (saved) {
+                    this.state.activeTheme = JSON.parse(saved);
+                    this.updateAllControls();
+                    this.convert();
+                    alert('Thème chargé avec succès!');
+                } else {
+                    alert('Aucun thème sauvegardé.');
+                }
+            } catch (e) {
+                alert('Erreur: ' + e.message);
+            }
+        }
+        
+        /**
+         * Generate HTML with inline styles for syntax highlighting
+         */
+        async generateInlineCodeHTML(code, language) {
+            // Load Prism if needed
+            await this.loadPrism(language);
+            
+            // Escape HTML entities
+            const escaped = this.escapeHTML(code);
+            
+            // Create temporary container
+            const temp = document.createElement('div');
+            temp.innerHTML = `<pre><code class="language-${language}">${escaped}</code></pre>`;
+            
+            // Apply syntax highlighting
+            Prism.highlightAllUnder(temp);
+            
+            // Token type mapping for efficient lookups
+            const tokenTypeMap = {
+                'selector': true, 'tag': 'selector', 
+                'punctuation': true,
+                'property': true, 'attr-name': 'property',
+                'comment': true,
+                'string': true,
+                'keyword': true,
+                'function': true,
+                'variable': true,
+                'number': true
+            };
+            
+            // Optimize by creating a style cache
+            const styleCache = new Map();
+            
+            // Process all tokens
+            temp.querySelectorAll('.token').forEach(token => {
+                // Find the token type from its classes
+                let tokenType = null;
+                
+                for (const className of token.classList) {
+                    if (tokenTypeMap[className]) {
+                        tokenType = tokenTypeMap[className] === true ? className : tokenTypeMap[className];
+                        break;
+                    }
+                }
+                
+                // Apply style if we have a matching theme color
+                if (tokenType && this.state.activeTheme[tokenType]) {
+                    const color = this.state.activeTheme[tokenType];
+                    
+                    // Use cached style if available
+                    if (!styleCache.has(color)) {
+                        styleCache.set(color, `color:${color}`);
+                    }
+                    
+                    token.setAttribute('style', styleCache.get(color));
+                }
+            });
+            
+            // Clean up all class attributes
+            temp.querySelectorAll('[class]').forEach(el => el.removeAttribute('class'));
+            
+            return temp.innerHTML;
+        }
+        
+        /**
+         * Load Prism.js and required components
+         */
+        async loadPrism(language) {
+            // If Prism is already loaded
+            if (window.Prism) {
+                // Load the language component if needed
+                if (!this.state.loadedResources.has(language)) {
+                    await this.loadLanguageComponent(language);
+                }
+                return;
+            }
+            
+            // Load core Prism resources
+            await Promise.all([
+                this.loadResource('script', 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js'),
+                this.loadResource('style', 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css')
+            ]);
+            
+            // Load the language component if needed
+            if (!this.state.loadedResources.has(language)) {
+                await this.loadLanguageComponent(language);
+            }
+        }
+        
+        /**
+         * Load a language component
+         */
+        async loadLanguageComponent(language) {
+            try {
+                await this.loadResource('script', `https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-${language}.min.js`);
+                this.state.loadedResources.add(language);
+            } catch (e) {
+                console.warn(`Language '${language}' not supported`);
+            }
+        }
+        
+        /**
+         * Load a script or stylesheet with caching
+         */
+        loadResource(type, url) {
+            // Return cached promise if this resource is already loading
+            if (this.resourcePromises[url]) {
+                return this.resourcePromises[url];
+            }
+            
+            // Create new promise for this resource
+            this.resourcePromises[url] = new Promise((resolve, reject) => {
+                let element;
+                
+                if (type === 'script') {
+                    element = document.createElement('script');
+                    element.src = url;
+                } else {
+                    element = document.createElement('link');
+                    element.rel = 'stylesheet';
+                    element.href = url;
+                }
+                
+                element.onload = resolve;
+                element.onerror = reject;
+                document.head.appendChild(element);
+            });
+            
+            return this.resourcePromises[url];
+        }
+        
+        /**
+         * Escape HTML entities in a string
+         */
+        escapeHTML(text) {
+            const entities = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            
+            return text.replace(/[&<>"']/g, c => entities[c]);
+        }
+    }
+
+    // Initialize the converter when the document is ready
+    document.addEventListener('DOMContentLoaded', () => new CodeConverter());
+    </script>
+</body>
+</html>

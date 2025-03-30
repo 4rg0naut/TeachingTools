@@ -316,15 +316,12 @@
 </head>
 <body>
     <div class="container">
-        <h2>Netpbm</h2>
+        <h1>Netpbm - Editeur léger en ligne pour images pbm, pgm et ppm</h1>
         <div class="header-controls">
             <button class="theme-toggle" id="theme-toggle">🌙</button>
         </div>
         <div id="app-content">
             <!-- Le contenu sera généré dynamiquement par JavaScript -->
-        </div>
-        <div id="hidden-input-container" style="display: none;">
-            <!-- Conteneur pour l'input masqué -->
         </div>
     </div>
 
@@ -332,8 +329,7 @@
     <template id="input-section-template">
         <div class="input-section" id="input-section">
             <label for="input">Code Netpbm (formats P1, P2, P3)</label>
-            <div class="format-info" style="display: none;" id="format-info">
-                Formats pris en charge :<br>
+            <div class="format-info">
                 P1: Portable Bitmap (noir et blanc)<br>
                 P2: Portable Graymap (niveaux de gris)<br>
                 P3: Portable Pixmap (couleur RGB)
@@ -346,7 +342,7 @@
     <template id="preview-section-template">
         <div class="preview-container" id="preview-container">
             <div class="preview-image">
-                
+                <h2>Prévisualisation</h2>
                 <img id="preview" alt="Preview" style="width: 280px">
                 <div class="color-picker" id="color-picker"></div>
             </div>
@@ -544,7 +540,7 @@
             },
             input: { 
                 id: "input-section", 
-                title: "Éditeur", 
+                title: "Entrée", 
                 templateId: "input-section-template" 
             },
             preview: { 
@@ -559,7 +555,7 @@
             },
             output: { 
                 id: "output-section", 
-                title: "Exportation pour HTML", 
+                title: "Sortie", 
                 templateId: "output-section-template" 
             }
         };
@@ -596,7 +592,7 @@
                     <a href="?sections=input,preview,hash" class="example-link">Avec vérification</a>
                     <a href="?sections=preview,input,output" class="example-link">Ordre personnalisé</a>
                     <a href="?sections=input,preview,output,hash&code=UDMKMyAyCjI1NQoyNTUgMCAwIDAgMjU1IDAgMjU1IDAgMCAKMjU1IDAgMCAwIDI1NSAwIDI1NSAwIDA=" class="example-link">Exemple complet</a>
-                    <a href="?sections=preview,hash&code=UDMKMyAyCjI1NQoyNTUgMCAwIDAgMjU1IDAgMjU1IDAgMCAKMjU1IDAgMCAwIDI1NSAwIDI1NSAwIDA=&edit=false" class="example-link">Sans éditeur</a>
+                    <a href="?sections=input,preview,output,hash&code=UDMKMyAyCjI1NQoyNTUgMCAwIDAgMjU1IDAgMjU1IDAgMCAKMjU1IDAgMCAwIDI1NSAwIDI1NSAwIDA=&edit=false" class="example-link">Mode figé (partage)</a>
                 </div>
             `;
             
@@ -607,9 +603,7 @@
         // Fonction pour initialiser l'interface utilisateur
         function initUI() {
             const appContent = document.getElementById('app-content');
-            const hiddenInputContainer = document.getElementById('hidden-input-container');
             appContent.innerHTML = ''; // Vider le contenu existant
-            hiddenInputContainer.innerHTML = ''; // Vider le conteneur masqué
             
             // Ajouter un bouton d'édition si nous sommes en mode édition
             if (config.edit) {
@@ -639,31 +633,6 @@
                 const welcomeSection = createWelcomeSection();
                 appContent.appendChild(welcomeSection);
                 return;
-            }
-            
-            // Vérifier si l'éditeur est explicitement demandé
-            const isInputVisible = config.sections.includes('input');
-            
-            // Si l'éditeur n'est pas explicitement demandé mais qu'on a un code, créer un éditeur caché
-            if (!isInputVisible && config.code) {
-                const template = document.getElementById('input-section-template');
-                if (template) {
-                    const hiddenInput = document.importNode(template.content, true).firstElementChild;
-                    hiddenInputContainer.appendChild(hiddenInput);
-                    
-                    // Pré-remplir l'input caché avec le code
-                    const input = hiddenInput.querySelector('#input');
-                    if (input && config.code) {
-                        try {
-                            const decodedCode = atob(config.code);
-                            input.value = decodedCode;
-                            // Traiter le code immédiatement
-                            setTimeout(() => handleInput(decodedCode), 100);
-                        } catch (e) {
-                            console.error("Erreur de décodage Base64:", e);
-                        }
-                    }
-                }
             }
             
             // Crée et affiche les sections selon l'ordre spécifié dans l'URL
@@ -741,18 +710,18 @@
                 });
             }
             
-            // Configurer les écouteurs d'événements pour les éléments d'entrée visibles
-            const visibleInput = document.getElementById('input');
-            if (visibleInput && isInputVisible) {
-                visibleInput.addEventListener('input', function() {
+            // Configurer les écouteurs d'événements pour les éléments d'entrée
+            const input = document.getElementById('input');
+            if (input) {
+                input.addEventListener('input', function() {
                     handleInput(this.value);
                 });
                 
-                // Pré-remplissage du code si fourni et que l'input est visible
+                // Pré-remplissage du code si fourni
                 if (config.code) {
                     try {
                         const decodedCode = atob(config.code);
-                        visibleInput.value = decodedCode;
+                        input.value = decodedCode;
                         handleInput(decodedCode);
                     } catch (e) {
                         const error = document.getElementById('error');
@@ -815,7 +784,6 @@
                 newURL.searchParams.set('edit', 'false');
             }
             
-            // Obtenir le texte de l'input (visible ou caché)
             const input = document.getElementById('input');
             if (input && input.value.trim()) {
                 const base64Content = btoa(input.value);

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exemple d'intégration du Code Viewer</title>
+    <style>
+        /* Styles pour la page conteneur */
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            padding: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: #333;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        
+        /* Style pour l'iframe responsive */
+        .code-container {
+            margin: 20px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        iframe {
+            width: 100%;
+            border: none;
+        }
+        
+        .iframe-height-sm {
+            height: 200px;
+        }
+        
+        .iframe-height-md {
+            height: 300px;
+        }
+        
+        .iframe-height-lg {
+            height: 400px;
+        }
+        
+        /* Instructions d'utilisation */
+        .instructions {
+            background-color: #f8f8f8;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 30px;
+        }
+        
+        pre {
+            background-color: #f4f4f4;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Démonstration du visualiseur de code</h1>
+    
+    <p>Voici un exemple de code Python avec le thème Tomorrow:</p>
+    
+    <div class="code-container">
+        <iframe src="simple_code_viewer.html?lang=python&theme=tomorrow&code=def%20hello()%3A%0A%20%20%20%20print(%22Hello%20World!%22)%0A%0Ahello()" class="iframe-height-sm" allowfullscreen></iframe>
+    </div>
+    
+    <h2>Exemple de code HTML avec le thème par défaut:</h2>
+    
+    <div class="code-container">
+        <iframe src="test.html?lang=html&code=%3C!DOCTYPE%20html%3E%0A%3Chtml%3E%0A%3Chead%3E%0A%20%20%20%20%3Ctitle%3ESimple%20Page%3C%2Ftitle%3E%0A%3C%2Fhead%3E%0A%3Cbody%3E%0A%20%20%20%20%3Ch1%3EHello%20World%3C%2Fh1%3E%0A%20%20%20%20%3Cp%3EThis%20is%20a%20simple%20HTML%20page.%3C%2Fp%3E%0A%3C%2Fbody%3E%0A%3C%2Fhtml%3E" class="iframe-height-md" allowfullscreen></iframe>
+    </div>
+    
+    <h2>Exemple de code Bash avec le thème Okaidia:</h2>
+    
+    <div class="code-container">
+        <iframe src="test.html?lang=bash&theme=okaidia&code=%23!%2Fbin%2Fbash%0A%0A%23%20Simple%20script%0Aecho%20%22Hello%20World!%22%0A%0A%23%20Variables%0ANAME%3D%22User%22%0Aecho%20%22Hello%20%24NAME!%22" class="iframe-height-sm" allowfullscreen></iframe>
+    </div>
+    
+    <h2>Exemple avec code64 (encodage base64):</h2>
+    
+    <div class="code-container">
+        <iframe src="test.html?lang=javascript&theme=tomorrow&code64=ZnVuY3Rpb24gZ3JlZXQobmFtZSkgewogIGNvbnNvbGUubG9nKGBIZWxsbyAke25hbWV9IWApOwp9CgpncmVldCgiV29ybGQiKTs=" class="iframe-height-sm" allowfullscreen></iframe>
+    </div>
+    
+    <div class="instructions">
+        <h3>Comment intégrer le Code Viewer dans votre page</h3>
+        <p>Pour intégrer le visualiseur de code dans votre page, utilisez ce modèle d'iframe :</p>
+        <pre><code>&lt;iframe 
+    src="test.html?lang=LANGAGE&theme=THEME&code=CODE_URL_ENCODED" 
+    class="iframe-height-md"
+    allowfullscreen&gt;&lt;/iframe&gt;</code></pre>
+        <p>Ou avec encodage base64 pour les codes plus complexes :</p>
+        <pre><code>&lt;iframe 
+    src="test.html?lang=LANGAGE&theme=THEME&code64=CODE_BASE64" 
+    class="iframe-height-md"
+    allowfullscreen&gt;&lt;/iframe&gt;</code></pre>
+        <p>Remplacez :</p>
+        <ul>
+            <li><strong>LANGAGE</strong> : html, css, javascript, python, bash, etc.</li>
+            <li><strong>THEME</strong> : default, tomorrow, okaidia, dark, etc.</li>
+            <li><strong>CODE_URL_ENCODED</strong> : votre code encodé avec encodeURIComponent()</li>
+            <li><strong>CODE_BASE64</strong> : votre code encodé en base64 avec btoa()</li>
+        </ul>
+        <p>Pour différentes hauteurs d'iframe, utilisez une de ces classes:</p>
+        <ul>
+            <li><strong>iframe-height-sm</strong> : 200px de hauteur</li>
+            <li><strong>iframe-height-md</strong> : 300px de hauteur (standard)</li>
+            <li><strong>iframe-height-lg</strong> : 400px de hauteur</li>
+        </ul>
+        
+        <h3>Outil pour générer des URLs:</h3>
+        <p>Voici un petit outil pour générer des URLs valides:</p>
+        <pre><code>function generateViewerUrl(code, lang = 'javascript', theme = 'default', useBase64 = false) {
+    if (useBase64) {
+        const base64Code = btoa(code);
+        return `test.html?lang=${lang}&theme=${theme}&code64=${base64Code}`;
+    } else {
+        const urlEncodedCode = encodeURIComponent(code);
+        return `test.html?lang=${lang}&theme=${theme}&code=${urlEncodedCode}`;
+    }
+}</code></pre>
+    </div>
+</body>
+</html>

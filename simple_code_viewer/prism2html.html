@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script>
+    async function compileToInlineStyles(code, language = 'css') {
+        // Charger Prism dynamiquement
+        await loadPrismResources();
+        
+        // Créer un conteneur réel dans le DOM
+        const tempDiv = document.createElement('div');
+        tempDiv.style.position = 'absolute';
+        tempDiv.style.left = '-9999px';
+        document.body.appendChild(tempDiv);
+        
+        tempDiv.innerHTML = `<pre><code class="language-${language}">${code}</code></pre>`;
+        
+        // Appliquer le highlighting
+        const codeElement = tempDiv.querySelector('code');
+        await Prism.highlightElement(codeElement);
+        
+        // Convertir les classes en styles inline
+        const tokens = tempDiv.querySelectorAll('[class*="token"]');
+        tokens.forEach(token => {
+            const styles = getComputedStyle(token);
+            const cssText = [
+                `color: ${styles.color}`,
+                `background-color: ${styles.backgroundColor}`,
+                `font-style: ${styles.fontStyle}`,
+                `font-weight: ${styles.fontWeight}`
+            ].join('; ');
+            
+            token.setAttribute('style', cssText);
+            token.removeAttribute('class');
+        });
+        
+        // Récupérer le HTML final
+        const result = tempDiv.innerHTML;
+        document.body.removeChild(tempDiv);
+        
+        return result;
+    }
+
+    async function loadPrismResources() {
+        const cssPromise = new Promise(resolve => {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css';
+            link.onload = resolve;
+            document.head.appendChild(link);
+        });
+
+        const jsPromise = new Promise(resolve => {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js';
+            script.onload = resolve;
+            document.head.appendChild(script);
+        });
+
+        await Promise.all([cssPromise, jsPromise]);
+    }
+    </script>
+</head>
+<body>
+    <textarea id="input" style="width:80%; height:100px;">
+.style_paragraphe_1 {
+    font-family: calibri;
+    font-weight: bold;
+}</textarea>
+    
+    <button onclick="run()">Compiler</button>
+    <pre id="output"></pre>
+
+    <script>
+    async function run() {
+        const code = document.getElementById('input').value;
+        const compiled = await compileToInlineStyles(code);
+        document.getElementById('output').textContent = compiled;
+    }
+    </script>
+</body>
+</html>

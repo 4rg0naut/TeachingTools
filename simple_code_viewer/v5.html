@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Convertisseur Code → HTML Optimisé</title>
+    <style>
+        body { font-family: system-ui; max-width: 800px; margin: 0 auto; padding: 20px; }
+        textarea, pre { width: 100%; height: 280px; border: 1px solid #ddd; padding: 10px; box-sizing: border-box; }
+        pre { background: #f5f5f5; overflow: auto; }
+        .controls { margin: 15px 0; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+        button { padding: 8px 12px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        h1 { color: #333; }
+        .color-editor { margin: 15px 0; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9; }
+        .color-row { display: flex; align-items: center; margin-bottom: 8px; }
+        .color-name { width: 120px; font-size: 14px; }
+        .color-preview { width: 24px; height: 24px; border: 1px solid #ccc; margin-right: 10px; }
+        .color-input { width: 100px; padding: 4px; border: 1px solid #ddd; border-radius: 4px; }
+        .color-sample { margin-left: 10px; padding: 3px 6px; border-radius: 3px; font-family: monospace; }
+        .toggle-colors { background: #607d8b; margin-left: auto; }
+        .tabs { display: flex; border-bottom: 1px solid #ddd; margin-bottom: 15px; }
+        .tab { padding: 8px 16px; cursor: pointer; border: 1px solid transparent; margin-bottom: -1px; border-radius: 4px 4px 0 0; }
+        .tab.active { border: 1px solid #ddd; border-bottom-color: white; background: white; font-weight: bold; }
+        .tabs-content > div { display: none; }
+        .tabs-content > div.active { display: block; }
+        .custom-theme-actions { display: flex; gap: 10px; margin-top: 10px; }
+        .theme-presets { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+        .theme-preset { padding: 5px 10px; background: #eee; border-radius: 4px; cursor: pointer; font-size: 13px; border: 1px solid #ddd; }
+        .theme-preset:hover { background: #e0e0e0; }
+    </style>
+</head>
+<body>
+    <h1>Convertisseur Code → HTML</h1>
+    <p>Génère du HTML avec styles inline pour les éditeurs qui filtrent les classes CSS.</p>
+    
+    <div class="controls">
+        <select id="language"></select>
+        <button id="convert-btn">Convertir</button>
+        <button id="copy-btn">Copier le code</button>
+        <button id="toggle-colors-btn" class="toggle-colors">Personnaliser les couleurs</button>
+    </div>
+    
+    <div id="color-editor" class="color-editor" style="display:none;">
+        <div class="tabs">
+            <div id="tab-themes" class="tab active" data-tab="themes">Thèmes prédéfinis</div>
+            <div id="tab-colors" class="tab" data-tab="colors">Couleurs individuelles</div>
+        </div>
+        
+        <div class="tabs-content">
+            <div id="content-themes" class="active">
+                <p>Sélectionnez un thème prédéfini ou personnalisez vos propres couleurs.</p>
+                <div id="theme-presets" class="theme-presets"></div>
+                
+                <div class="custom-theme-actions">
+                    <button id="save-theme-btn">Sauvegarder le thème actuel</button>
+                    <button id="load-theme-btn">Charger le thème sauvegardé</button>
+                </div>
+            </div>
+            
+            <div id="content-colors">
+                <p>Personnalisez les couleurs pour chaque type d'élément syntaxique.</p>
+                <div id="color-controls"></div>
+            </div>
+        </div>
+    </div>
+    
+    <textarea id="code" spellcheck="false"></textarea>
+    
+    <h3>HTML généré</h3>
+    <pre id="output"></pre>
+    
+    <h3>Prévisualisation</h3>
+    <div id="preview"></div>
+
+    <script>
+    class CodeConverter {
+        constructor() {
+            // Configuration centralisée
+            this.config = {
+                // Thèmes de couleurs avec propriétés communes
+                themes: {
+                    default: {
+                        selector: '#690', punctuation: '#999', property: '#905',
+                        comment: '#708090', string: '#690', keyword: '#07a',
+                        function: '#DD4A68', variable: '#e90', number: '#905',
+                        background: '#f5f5f5', fontFamily: 'Consolas, Monaco, monospace',
+                        fontSize: '14px', lineHeight: '1.5'
+                    },
+                    dark: {
+                        selector: '#a6e22e', punctuation: '#f8f8f2', property: '#f92672',
+                        comment: '#75715e', string: '#e6db74', keyword: '#66d9ef',
+                        function: '#fd971f', variable: '#fd971f', number: '#ae81ff',
+                        background: '#282a36', fontFamily: 'Consolas, Monaco, monospace',
+                        fontSize: '14px', lineHeight: '1.5'
+                    },
+                    pastel: {
+                        selector: '#8ec07c', punctuation: '#928374', property: '#d3869b',
+                        comment: '#928374', string: '#b8bb26', keyword: '#83a598',
+                        function: '#fe8019', variable: '#fabd2f', number: '#d3869b',
+                        background: '#fbf1c7', fontFamily: 'Consolas, Monaco, monospace',
+                        fontSize: '14px', lineHeight: '1.5'
+                    },
+                    monochrome: {
+                        selector: '#555', punctuation: '#777', property: '#333',
+                        comment: '#999', string: '#444', keyword: '#222',
+                        function: '#444', variable: '#555', number: '#333',
+                        background: '#f8f8f8', fontFamily: 'Consolas, Monaco, monospace',
+                        fontSize: '14px', lineHeight: '1.5'
+                    }
+                },
+                
+                // Configuration des contrôles de couleur
+                colorControls: [
+                    { id: 'selector', name: 'Sélecteurs, Tags', sample: '.container, div' },
+                    { id: 'punctuation', name: 'Ponctuation', sample: '{} () ; ,' },
+                    { id: 'property', name: 'Propriétés', sample: 'display, color' },
+                    { id: 'comment', name: 'Commentaires', sample: '/* commentaire */' },
+                    { id: 'string', name: 'Chaînes', sample: "'texte' \"exemple\"" },
+                    { id: 'keyword', name: 'Mots-clés', sample: 'if, return, class' },
+                    { id: 'function', name: 'Fonctions', sample: 'functionName()' },
+                    { id: 'variable', name: 'Variables', sample: '$var, myVariable' },
+                    { id: 'number', name: 'Nombres', sample: '42, 3.14' },
+                    { id: 'background', name: 'Arrière-plan', sample: '' },
+                ],
+                
+                // Options de police
+                fontOptions: [
+                    { value: "Consolas, Monaco, monospace", label: "Consolas/Monaco" },
+                    { value: "'Source Code Pro', monospace", label: "Source Code Pro" },
+                    { value: "'Fira Code', monospace", label: "Fira Code" },
+                    { value: "'JetBrains Mono', monospace", label: "JetBrains Mono" },
+                    { value: "monospace", label: "Monospace standard" }
+                ],
+                
+                // Exemples de code par langage
+                examples: {
+                    css: `.container {\n    display: flex;\n    flex-direction: column;\n    margin: 0 auto;\n    max-width: 800px;\n}\n\n/* Styles pour le titre */\nh1 {\n    color: #2c3e50;\n    font-family: 'Arial', sans-serif;\n    text-align: center;\n}`,
+                    html: `<!DOCTYPE html>\n<html>\n<head>\n    <title>Page simple</title>\n</head>\n<body>\n    <h1>Titre principal</h1>\n    <p>Un paragraphe d'exemple avec du <strong>texte en gras</strong>.</p>\n</body>\n</html>`,
+                    javascript: `// Fonction simple\nfunction saluer(nom) {\n    return \`Bonjour, \${nom}!\`;\n}\n\n// Utilisation\nconsole.log(saluer('monde'));\n\n// Classe d'exemple\nclass Personne {\n    constructor(nom) {\n        this.nom = nom;\n    }\n}`,
+                    python: `# Définition d'une fonction\ndef fibonacci(n):\n    a, b = 0, 1\n    for _ in range(n):\n        yield a\n        a, b = b, a + b\n\n# Utilisation\nfor n in fibonacci(5):\n    print(n)`,
+                    bash: `#!/bin/bash\n\n# Variables\nNOM="monde"\n\n# Affichage\necho "Bonjour, $NOM!"`,
+                    sql: `-- Création d'une table\nCREATE TABLE users (\n    id INT PRIMARY KEY,\n    nom VARCHAR(50)\n);\n\n-- Insertion\nINSERT INTO users VALUES (1, 'Jean');`,
+                    php: `<?php\n// Fonction simple\nfunction saluer($nom) {\n    return "Bonjour, $nom!";\n}\n\n// Utilisation\necho saluer("monde");\n?>`
+                },
+                
+                // Liste des langages supportés
+                languages: [
+                    { value: 'css', label: 'CSS' },
+                    { value: 'html', label: 'HTML' },
+                    { value: 'javascript', label: 'JavaScript' },
+                    { value: 'python', label: 'Python' },
+                    { value: 'bash', label: 'Bash' },
+                    { value: 'sql', label: 'SQL' },
+                    { value: 'php', label: 'PHP' }
+                ]
+            };
+            
+            // État de l'application
+            this.state = {
+                activeTheme: JSON.parse(JSON.stringify(this.config.themes.default)),
+                currentLanguage: 'css',
+                loadedResources: new Set(['html', 'css', 'javascript', 'js'])
+            };
+            
+            // Cache des éléments DOM
+            this.elements = {};
+            
+            // Initialiser l'application
+            this.init();
+        }
+        
+        init() {
+            // Initialiser les références DOM
+            this.cacheElements();
+            
+            // Générer les composants UI
+            this.generateLanguageOptions();
+            this.generateThemePresets();
+            this.generateColorControls();
+            
+            // Ajouter les contrôles de police
+            this.addFontControls();
+            
+            // Définir les gestionnaires d'événements
+            this.bindEvents();
+            
+            // Charger l'exemple initial
+            this.setLanguage('css');
+        }
+        
+        cacheElements() {
+            // Réduire les accès au DOM en mettant en cache les éléments fréquemment utilisés
+            const ids = [
+                'language', 'code', 'output', 'preview', 'convert-btn', 'copy-btn',
+                'toggle-colors-btn', 'color-editor', 'color-controls', 'theme-presets',
+                'tab-themes', 'tab-colors', 'content-themes', 'content-colors',
+                'save-theme-btn', 'load-theme-btn'
+            ];
+            
+            ids.forEach(id => {
+                this.elements[id] = document.getElementById(id);
+            });
+        }
+        
+        generateLanguageOptions() {
+            const select = this.elements['language'];
+            select.innerHTML = '';
+            
+            this.config.languages.forEach(lang => {
+                const option = document.createElement('option');
+                option.value = lang.value;
+                option.textContent = lang.label;
+                select.appendChild(option);
+            });
+        }
+        
+        generateThemePresets() {
+            const container = this.elements['theme-presets'];
+            container.innerHTML = '';
+            
+            Object.keys(this.config.themes).forEach(theme => {
+                const preset = document.createElement('div');
+                preset.className = 'theme-preset';
+                preset.textContent = theme.charAt(0).toUpperCase() + theme.slice(1);
+                preset.dataset.theme = theme;
+                container.appendChild(preset);
+            });
+        }
+        
+        generateColorControls() {
+            const container = this.elements['color-controls'];
+            container.innerHTML = '';
+            
+            // Générer les contrôles de couleur
+            this.config.colorControls.forEach(control => {
+                const row = document.createElement('div');
+                row.className = 'color-row';
+                
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'color-name';
+                nameDiv.textContent = control.name;
+                
+                const previewDiv = document.createElement('div');
+                previewDiv.className = 'color-preview';
+                previewDiv.id = `preview-${control.id}`;
+                previewDiv.style.backgroundColor = this.state.activeTheme[control.id] || '#000000';
+                
+                const input = document.createElement('input');
+                input.type = 'color';
+                input.className = 'color-input';
+                input.id = `color-${control.id}`;
+                input.value = this.state.activeTheme[control.id] || '#000000';
+                input.dataset.type = control.id;
+                
+                row.appendChild(nameDiv);
+                row.appendChild(previewDiv);
+                row.appendChild(input);
+                
+                if (control.sample) {
+                    const sample = document.createElement('span');
+                    sample.className = 'color-sample';
+                    sample.id = `sample-${control.id}`;
+                    sample.textContent = control.sample;
+                    sample.style.color = this.state.activeTheme[control.id] || '#000000';
+                    row.appendChild(sample);
+                }
+                
+                container.appendChild(row);
+            });
+        }
+        
+        addFontControls() {
+            const container = this.elements['color-controls'];
+            
+            // Ajouter contrôle de police
+            const fontRow = document.createElement('div');
+            fontRow.className = 'color-row';
+            
+            const fontLabel = document.createElement('div');
+            fontLabel.className = 'color-name';
+            fontLabel.textContent = 'Police';
+            
+            const fontSelect = document.createElement('select');
+            fontSelect.className = 'color-input';
+            fontSelect.id = 'font-family';
+            fontSelect.style.width = '200px';
+            
+            this.config.fontOptions.forEach(option => {
+                const opt = document.createElement('option');
+                opt.value = option.value;
+                opt.textContent = option.label;
+                if (option.value === this.state.activeTheme.fontFamily) {
+                    opt.selected = true;
+                }
+                fontSelect.appendChild(opt);
+            });
+            
+            fontRow.appendChild(fontLabel);
+            fontRow.appendChild(fontSelect);
+            container.appendChild(fontRow);
+            
+            // Ajouter contrôle de taille
+            const sizeRow = document.createElement('div');
+            sizeRow.className = 'color-row';
+            
+            const sizeLabel = document.createElement('div');
+            sizeLabel.className = 'color-name';
+            sizeLabel.textContent = 'Taille';
+            
+            const sizeSelect = document.createElement('select');
+            sizeSelect.className = 'color-input';
+            sizeSelect.id = 'font-size';
+            
+            ['12px', '14px', '16px', '18px'].forEach(size => {
+                const opt = document.createElement('option');
+                opt.value = size;
+                opt.textContent = size;
+                if (size === this.state.activeTheme.fontSize) {
+                    opt.selected = true;
+                }
+                sizeSelect.appendChild(opt);
+            });
+            
+            sizeRow.appendChild(sizeLabel);
+            sizeRow.appendChild(sizeSelect);
+            container.appendChild(sizeRow);
+        }
+        
+        bindEvents() {
+            // Événements pour les boutons principaux
+            this.elements['convert-btn'].addEventListener('click', () => this.convert());
+            this.elements['copy-btn'].addEventListener('click', () => this.copyOutput());
+            this.elements['toggle-colors-btn'].addEventListener('click', () => this.toggleColorEditor());
+            
+            // Événement de changement de langue
+            this.elements['language'].addEventListener('change', e => this.setLanguage(e.target.value));
+            
+            // Événements pour l'éditeur de couleurs
+            document.querySelectorAll('.color-input[type="color"]').forEach(input => {
+                input.addEventListener('input', e => {
+                    const type = e.target.dataset.type;
+                    this.updateThemeSetting(type, e.target.value);
+                });
+            });
+            
+            // Événements pour les contrôles de police
+            document.getElementById('font-family').addEventListener('change', e => {
+                this.updateThemeSetting('fontFamily', e.target.value);
+            });
+            
+            document.getElementById('font-size').addEventListener('change', e => {
+                this.updateThemeSetting('fontSize', e.target.value);
+            });
+            
+            // Événements pour les onglets
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', e => {
+                    this.switchTab(e.target.dataset.tab);
+                });
+            });
+            
+            // Événements pour les thèmes prédéfinis
+            document.querySelectorAll('.theme-preset').forEach(preset => {
+                preset.addEventListener('click', e => {
+                    this.applyTheme(e.target.dataset.theme);
+                });
+            });
+            
+            // Événements pour sauvegarder/charger
+            this.elements['save-theme-btn'].addEventListener('click', () => this.saveCustomTheme());
+            this.elements['load-theme-btn'].addEventListener('click', () => this.loadCustomTheme());
+        }
+        
+        setLanguage(language) {
+            this.state.currentLanguage = language;
+            this.elements['code'].value = this.config.examples[language] || '';
+            this.convert();
+        }
+        
+        async convert() {
+            try {
+                const code = this.elements['code'].value;
+                const language = this.state.currentLanguage;
+                
+                const html = await this.generateInlineCodeHTML(code, language);
+                
+                this.elements['output'].textContent = html;
+                this.elements['preview'].innerHTML = html;
+                
+                // Appliquer les styles supplémentaires
+                this.applyAdditionalStyles();
+            } catch (error) {
+                console.error('Erreur:', error);
+                this.elements['output'].textContent = `Erreur: ${error.message}`;
+            }
+        }
+        
+        applyAdditionalStyles() {
+            const preElement = this.elements['preview'].querySelector('pre');
+            if (preElement) {
+                preElement.style.backgroundColor = this.state.activeTheme.background;
+                preElement.style.fontFamily = this.state.activeTheme.fontFamily;
+                preElement.style.fontSize = this.state.activeTheme.fontSize;
+                preElement.style.lineHeight = this.state.activeTheme.lineHeight;
+            }
+        }
+        
+        updateThemeSetting(property, value) {
+            // Mettre à jour le thème
+            this.state.activeTheme[property] = value;
+            
+            // Mettre à jour la prévisualisation
+            const previewElement = document.getElementById(`preview-${property}`);
+            const sampleElement = document.getElementById(`sample-${property}`);
+            
+            if (previewElement) {
+                previewElement.style.backgroundColor = value;
+            }
+            
+            if (sampleElement) {
+                sampleElement.style.color = value;
+            }
+            
+            // Mettre à jour la prévisualisation de code si disponible
+            this.convert();
+        }
+        
+        copyOutput() {
+            navigator.clipboard.writeText(this.elements['output'].textContent)
+                .then(() => {
+                    const btn = this.elements['copy-btn'];
+                    const original = btn.textContent;
+                    btn.textContent = '✓ Copié!';
+                    setTimeout(() => btn.textContent = original, 1500);
+                })
+                .catch(() => alert('Impossible de copier. Veuillez copier manuellement.'));
+        }
+        
+        toggleColorEditor() {
+            const editor = this.elements['color-editor'];
+            editor.style.display = editor.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        switchTab(tabId) {
+            // Désactiver tous les onglets et contenus
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tabs-content > div').forEach(content => content.classList.remove('active'));
+            
+            // Activer l'onglet et le contenu sélectionnés
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+            document.getElementById(`content-${tabId}`).classList.add('active');
+        }
+        
+        applyTheme(themeName) {
+            const theme = this.config.themes[themeName];
+            if (!theme) return;
+            
+            this.state.activeTheme = JSON.parse(JSON.stringify(theme));
+            
+            // Mettre à jour tous les contrôles
+            Object.entries(this.state.activeTheme).forEach(([property, value]) => {
+                const input = document.getElementById(`color-${property}`);
+                if (input) {
+                    input.value = value;
+                    
+                    const preview = document.getElementById(`preview-${property}`);
+                    if (preview) {
+                        preview.style.backgroundColor = value;
+                    }
+                    
+                    const sample = document.getElementById(`sample-${property}`);
+                    if (sample) {
+                        sample.style.color = value;
+                    }
+                }
+            });
+            
+            // Mettre à jour les sélecteurs de police
+            const fontSelect = document.getElementById('font-family');
+            if (fontSelect) {
+                [...fontSelect.options].forEach((option, index) => {
+                    if (option.value === this.state.activeTheme.fontFamily) {
+                        fontSelect.selectedIndex = index;
+                    }
+                });
+            }
+            
+            const sizeSelect = document.getElementById('font-size');
+            if (sizeSelect) {
+                [...sizeSelect.options].forEach((option, index) => {
+                    if (option.value === this.state.activeTheme.fontSize) {
+                        sizeSelect.selectedIndex = index;
+                    }
+                });
+            }
+            
+            // Appliquer à la prévisualisation
+            this.convert();
+        }
+        
+        saveCustomTheme() {
+            try {
+                localStorage.setItem('customCodeTheme', JSON.stringify(this.state.activeTheme));
+                alert('Thème personnalisé sauvegardé avec succès!');
+            } catch (e) {
+                alert('Erreur lors de la sauvegarde du thème: ' + e.message);
+            }
+        }
+        
+        loadCustomTheme() {
+            try {
+                const saved = localStorage.getItem('customCodeTheme');
+                if (saved) {
+                    this.state.activeTheme = JSON.parse(saved);
+                    
+                    // Mettre à jour l'interface
+                    Object.entries(this.state.activeTheme).forEach(([property, value]) => {
+                        const input = document.getElementById(`color-${property}`);
+                        if (input) {
+                            input.value = value;
+                            
+                            const preview = document.getElementById(`preview-${property}`);
+                            if (preview) {
+                                preview.style.backgroundColor = value;
+                            }
+                            
+                            const sample = document.getElementById(`sample-${property}`);
+                            if (sample) {
+                                sample.style.color = value;
+                            }
+                        }
+                    });
+                    
+                    // Mettre à jour la prévisualisation
+                    this.convert();
+                    
+                    alert('Thème personnalisé chargé avec succès!');
+                } else {
+                    alert('Aucun thème personnalisé sauvegardé.');
+                }
+            } catch (e) {
+                alert('Erreur lors du chargement du thème: ' + e.message);
+            }
+        }
+        
+        async generateInlineCodeHTML(code, language) {
+            await this.loadPrism(language);
+            
+            // Échapper HTML
+            const escaped = code.replace(/[&<>"']/g, c => {
+                return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c];
+            });
+            
+            // Conteneur temporaire
+            const temp = document.createElement('div');
+            temp.innerHTML = `<pre><code class="language-${language}">${escaped}</code></pre>`;
+            
+            // Appliquer la coloration
+            Prism.highlightAllUnder(temp);
+            
+            // Map de correspondance type de token -> propriété thème
+            const tokenTypeMap = {
+                'selector': 'selector', 'tag': 'selector', 
+                'punctuation': 'punctuation',
+                'property': 'property', 'attr-name': 'property',
+                'comment': 'comment',
+                'string': 'string',
+                'keyword': 'keyword',
+                'function': 'function',
+                'variable': 'variable',
+                'number': 'number'
+            };
+            
+            // Appliquer les couleurs du thème aux tokens
+            temp.querySelectorAll('.token').forEach(token => {
+                const classList = Array.from(token.classList);
+                
+                // Trouver le premier type de token correspondant dans la map
+                for (const cls of classList) {
+                    const themeProperty = tokenTypeMap[cls];
+                    if (themeProperty && this.state.activeTheme[themeProperty]) {
+                        token.style.color = this.state.activeTheme[themeProperty];
+                        break;
+                    }
+                }
+            });
+            
+            // Supprimer toutes les classes
+            temp.querySelectorAll('[class]').forEach(el => {
+                el.removeAttribute('class');
+            });
+            
+            return temp.innerHTML;
+        }
+        
+        async loadPrism(language) {
+            // Si Prism est déjà chargé
+            if (window.Prism) {
+                if (!this.state.loadedResources.has(language)) {
+                    await this.loadLanguageComponent(language);
+                }
+                return;
+            }
+            
+            // Charger les ressources de base
+            await Promise.all([
+                this.loadResource('script', 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js'),
+                this.loadResource('style', 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css')
+            ]);
+            
+            // Charger le langage si nécessaire
+            if (!this.state.loadedResources.has(language)) {
+                await this.loadLanguageComponent(language);
+            }
+        }
+        
+        async loadLanguageComponent(language) {
+            try {
+                await this.loadResource('script', `https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-${language}.min.js`);
+                this.state.loadedResources.add(language);
+            } catch (e) {
+                console.warn(`Langage '${language}' non supporté`);
+            }
+        }
+        
+        loadResource(type, url) {
+            return new Promise((resolve, reject) => {
+                let element;
+                
+                if (type === 'script') {
+                    element = document.createElement('script');
+                    element.src = url;
+                } else {
+                    element = document.createElement('link');
+                    element.rel = 'stylesheet';
+                    element.href = url;
+                }
+                
+                element.onload = resolve;
+                element.onerror = reject;
+                document.head.appendChild(element);
+            });
+        }
+    }
+
+    // Initialisation de l'application
+    document.addEventListener('DOMContentLoaded', () => {
+        new CodeConverter();
+    });
+    </script>
+</body>
+</html>

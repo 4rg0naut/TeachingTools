@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    
+    <!-- Prism.js Core -->
+    <link href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+    
+    <!-- Languages -->
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-css.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-html.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+
+    <style>
+        /* Reset CSS */
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            overflow-x: hidden;
+            background: #f5f5f5 !important;
+            box-sizing: border-box;
+        }
+
+        /* Container principal */
+        .prism-viewer {
+            max-width: 100%;
+            margin: 0;
+            padding: 12px;
+        }
+
+        /* Override styles Prism.js */
+        pre[class*="language-"] {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: transparent !important;
+            overflow: visible !important;
+            white-space: pre-wrap !important;
+            word-break: break-word !important;
+        }
+
+        code[class*="language-"] {
+            display: block !important;
+            padding: 0 !important;
+            background: transparent !important;
+            word-wrap: anywhere !important;
+            font-size: clamp(13px, 1.5vw, 15px) !important;
+        }
+
+        /* Gestion des éléments inline */
+        .token {
+            white-space: pre-wrap !important;
+            word-break: inherit !important;
+        }
+
+        /* Scrollbar invisible */
+        ::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="prism-viewer">
+        <pre><code class="language-{{lang}}"></code></pre>
+    </div>
+
+    <script>
+        // Paramètres URL
+        const params = new URLSearchParams(window.location.search);
+        const code = params.has('code') ? decodeURIComponent(params.get('code')) : '';
+        const lang = params.get('lang') || 'css';
+
+        // Initialisation
+        const initViewer = () => {
+            const codeElement = document.querySelector('code');
+            codeElement.className = `language-${lang}`;
+            codeElement.textContent = code;
+            
+            Prism.highlightAll();
+            
+            // Ajustement de la largeur
+            const container = document.querySelector('.prism-viewer');
+            container.style.width = document.documentElement.clientWidth + 'px';
+        };
+
+        // Redimensionnement dynamique
+        let resizeTimer;
+        const handleResize = () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                const viewer = document.querySelector('.prism-viewer');
+                viewer.style.width = document.documentElement.clientWidth + 'px';
+                Prism.highlightAll();
+            }, 100);
+        };
+
+        // Communication avec le parent
+        const updateParent = () => {
+            const height = document.documentElement.scrollHeight;
+            window.parent.postMessage({
+                prismHeight: height,
+                prismUrl: window.location.href
+            }, '*');
+        };
+
+        // Observateur de modifications
+        const observer = new MutationObserver(() => {
+            updateParent();
+            handleResize();
+        });
+
+        // Initialisation
+        window.addEventListener('load', () => {
+            initViewer();
+            updateParent();
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true,
+                attributes: true
+            });
+        });
+
+        window.addEventListener('resize', () => {
+            handleResize();
+            updateParent();
+        });
+    </script>
+</body>
+</html>

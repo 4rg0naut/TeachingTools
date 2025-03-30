@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Convertisseur Code → HTML Minimal</title>
+    <style>
+        body { font-family: system-ui; max-width: 800px; margin: 0 auto; padding: 20px; }
+        textarea, pre { width: 100%; height: 300px; border: 1px solid #ddd; padding: 10px; font-family: monospace; box-sizing: border-box; }
+        pre { background: #f5f5f5; overflow: auto; }
+        .controls { margin: 15px 0; }
+        button { padding: 8px 12px; margin: 0 5px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        h1 { color: #333; }
+    </style>
+    <script>
+    async function generateInlineCodeHTML(code, language = 'css') {
+        // Charger Prism si nécessaire
+        await loadPrism(language);
+        
+        // Échapper HTML
+        const escaped = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        
+        // Conteneur temporaire
+        const temp = document.createElement('div');
+        temp.style.position = 'absolute';
+        temp.style.left = '-9999px';
+        temp.innerHTML = `<pre><code class="language-${language}">${escaped}</code></pre>`;
+        document.body.appendChild(temp);
+        
+        // Appliquer la coloration
+        Prism.highlightAllUnder(temp);
+        
+        // Map de conversion pour des styles plus courts
+        const colorMap = {};
+        
+        // Fonction pour obtenir une forme plus courte des couleurs
+        function getCompactColor(color) {
+            // Si c'est déjà court (comme #abc), on le garde
+            if (color.startsWith('#') && color.length <= 7) return color;
+            
+            // Si on l'a déjà rencontré, on réutilise
+            if (colorMap[color]) return colorMap[color];
+            
+            // Tenter de transformer rgb(x,y,z) en #hex si possible
+            if (color.startsWith('rgb')) {
+                const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+                if (match) {
+                    const [_, r, g, b] = match;
+                    const hex = `#${parseInt(r).toString(16).padStart(2,'0')}${parseInt(g).toString(16).padStart(2,'0')}${parseInt(b).toString(16).padStart(2,'0')}`;
+                    colorMap[color] = hex;
+                    return hex;
+                }
+            }
+            
+            // Stocker tel quel
+            colorMap[color] = color;
+            return color;
+        }
+        
+        // IMPORTANT: Préserver la structure HTML exacte de Prism
+        // mais remplacer les classes par des styles inline
+        const codeElement = temp.querySelector('code');
+        
+        // ÉTAPE 1: Ajouter des styles inline à tous les tokens sans modifier la structure
+        const tokens = codeElement.querySelectorAll('.token');
+        tokens.forEach(token => {
+            const style = window.getComputedStyle(token);
+            const color = style.color;
+            
+            // Ne créer un style que si la couleur est différente du noir par défaut
+            if (color !== 'rgb(0, 0, 0)' && color !== '#000' && color !== 'black') {
+                token.setAttribute('style', `color:${getCompactColor(color)}`);
+            }
+        });
+        
+        // ÉTAPE 2: Supprimer toutes les classes mais conserver la structure
+        const allElements = temp.querySelectorAll('*');
+        allElements.forEach(el => {
+            el.removeAttribute('class');
+        });
+        
+        // ÉTAPE 3: Récupérer le HTML avec la structure préservée
+        const html = temp.innerHTML;
+        
+        // Nettoyage
+        document.body.removeChild(temp);
+        
+        return html;
+    }
+
+    async function loadPrism(language) {
+        if (window.Prism) return;
+        
+        // Charger le core et le CSS
+        await Promise.all([
+            new Promise(resolve => {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js';
+                script.onload = resolve;
+                document.head.appendChild(script);
+            }),
+            new Promise(resolve => {
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css';
+                link.onload = resolve;
+                document.head.appendChild(link);
+            })
+        ]);
+        
+        // Chargement du langage si nécessaire
+        if (!['html', 'css', 'javascript', 'js'].includes(language)) {
+            await new Promise(resolve => {
+                const script = document.createElement('script');
+                script.src = `https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-${language}.min.js`;
+                script.onload = resolve;
+                script.onerror = resolve;
+                document.head.appendChild(script);
+            });
+        }
+    }
+
+    async function convert() {
+        const code = document.getElementById('code').value;
+        const lang = document.getElementById('language').value;
+        const output = document.getElementById('output');
+        
+        try {
+            document.getElementById('convert-btn').disabled = true;
+            output.textContent = 'Conversion en cours...';
+            
+            const html = await generateInlineCodeHTML(code, lang);
+            output.textContent = html;
+            
+            document.getElementById('preview').innerHTML = html;
+            document.getElementById('convert-btn').disabled = false;
+        } catch (e) {
+            output.textContent = 'Erreur: ' + e;
+            document.getElementById('convert-btn').disabled = false;
+        }
+    }
+
+    function copyOutput() {
+        const output = document.getElementById('output');
+        navigator.clipboard.writeText(output.textContent)
+            .then(() => {
+                const btn = document.getElementById('copy-btn');
+                const original = btn.textContent;
+                btn.textContent = '✓ Copié!';
+                setTimeout(() => btn.textContent = original, 1500);
+            })
+            .catch(() => alert('Impossible de copier. Veuillez copier manuellement.'));
+    }
+    </script>
+</head>
+<body>
+    <h1>Convertisseur Code → HTML Minimal</h1>
+    <p>Génère du HTML avec styles inline ultra-compact pour les éditeurs qui filtrent les classes.</p>
+    
+    <div class="controls">
+        <select id="language">
+            <option value="css">CSS</option>
+            <option value="html">HTML</option>
+            <option value="javascript">JavaScript</option>
+            <option value="python">Python</option>
+            <option value="bash">Bash</option>
+            <option value="sql">SQL</option>
+            <option value="php">PHP</option>
+        </select>
+        <button id="convert-btn" onclick="convert()">Convertir</button>
+        <button id="copy-btn" onclick="copyOutput()">Copier le code</button>
+    </div>
+    
+    <textarea id="code" spellcheck="false">.container {
+    display: flex;
+    flex-direction: column;
+    margin: 0 auto;
+    max-width: 800px;
+}
+
+/* Styles pour le titre */
+h1 {
+    color: #2c3e50;
+    font-family: 'Arial', sans-serif;
+    text-align: center;
+}</textarea>
+    
+    <h3>HTML généré</h3>
+    <pre id="output"></pre>
+    
+    <h3>Prévisualisation</h3>
+    <div id="preview"></div>
+    
+    <script>
+        // Charger exemples par défaut
+        document.getElementById('language').addEventListener('change', function() {
+            const examples = {
+                css: `.container {\n    display: flex;\n    flex-direction: column;\n    margin: 0 auto;\n    max-width: 800px;\n}\n\n/* Styles pour le titre */\nh1 {\n    color: #2c3e50;\n    font-family: 'Arial', sans-serif;\n    text-align: center;\n}`,
+                html: `<!DOCTYPE html>\n<html>\n<head>\n    <title>Page simple</title>\n</head>\n<body>\n    <h1>Titre principal</h1>\n    <p>Un paragraphe d'exemple avec du <strong>texte en gras</strong>.</p>\n</body>\n</html>`,
+                javascript: `// Fonction simple\nfunction saluer(nom) {\n    return \`Bonjour, \${nom}!\`;\n}\n\n// Utilisation\nconsole.log(saluer('monde'));`,
+                python: `# Définition d'une fonction\ndef fibonacci(n):\n    a, b = 0, 1\n    for _ in range(n):\n        yield a\n        a, b = b, a + b\n\n# Utilisation\nfor n in fibonacci(5):\n    print(n)`,
+                bash: `#!/bin/bash\n\n# Variables\nNOM="monde"\n\n# Affichage\necho "Bonjour, $NOM!"`,
+                sql: `-- Création d'une table\nCREATE TABLE users (\n    id INT PRIMARY KEY,\n    nom VARCHAR(50)\n);\n\n-- Insertion\nINSERT INTO users VALUES (1, 'Jean');`,
+                php: `<?php\n// Fonction simple\nfunction saluer($nom) {\n    return "Bonjour, $nom!";\n}\n\n// Utilisation\necho saluer("monde");\n?>`
+            };
+            document.getElementById('code').value = examples[this.value] || '';
+        });
+    </script>
+</body>
+</html>

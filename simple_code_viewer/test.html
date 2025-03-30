@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Code Viewer</title>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+</head>
+<body>
+    <pre aria-label="Code source" role="region"><code></code></pre>
+
+    <script>
+        // Fonction pour décoder le base64 de manière sécurisée
+        function safeBase64Decode(encoded) {
+            try {
+                // Assurons-nous que le string est propre pour base64
+                // Parfois les URLs peuvent ajouter des espaces ou des caractères non valides
+                const cleaned = encoded.replace(/\s/g, '');
+                return atob(cleaned);
+            } catch (e) {
+                console.error("Erreur de décodage base64:", e);
+                return "Erreur: Le code base64 fourni n'est pas valide.";
+            }
+        }
+        
+        // Extraction des paramètres URL
+        const params = new URLSearchParams(window.location.search);
+        const lang = params.get('lang') || 'css';
+        const theme = params.get('theme') || 'default';
+        let code = '';
+        
+        // Récupération du code - avec support pour base64
+        if (params.has('code64')) {
+            code = safeBase64Decode(params.get('code64'));
+        } else if (params.has('code')) {
+            code = decodeURIComponent(params.get('code'));
+        }
+        
+        // Définition des thèmes disponibles
+        const themes = {
+            'default': 'prism.min.css',
+            'dark': 'prism-dark.min.css',
+            'okaidia': 'prism-okaidia.min.css',
+            'tomorrow': 'prism-tomorrow.min.css',
+            'twilight': 'prism-twilight.min.css',
+            'coy': 'prism-coy.min.css',
+            'solarizedlight': 'prism-solarizedlight.min.css',
+            'funky': 'prism-funky.min.js'  // Correction: devrait être .css
+        };
+        
+        // Correction du chemin pour funky
+        themes.funky = 'prism-funky.min.css';
+        
+        // Langages supportés et leur fichier correspondant
+        const languages = {
+            'markup': 'prism-markup.min.js',
+            'html': 'prism-markup.min.js',
+            'xml': 'prism-markup.min.js',
+            'svg': 'prism-markup.min.js',
+            'css': 'prism-css.min.js',
+            'javascript': 'prism-javascript.min.js',
+            'js': 'prism-javascript.min.js',
+            'python': 'prism-python.min.js',
+            'py': 'prism-python.min.js',
+            'bash': 'prism-bash.min.js',
+            'shell': 'prism-bash.min.js',
+            'sql': 'prism-sql.min.js',
+            'json': 'prism-json.min.js',
+            'java': 'prism-java.min.js',
+            'php': 'prism-php.min.js',
+            'c': 'prism-c.min.js',
+            'cpp': 'prism-cpp.min.js',
+            'csharp': 'prism-csharp.min.js',
+            'cs': 'prism-csharp.min.js',
+            'ruby': 'prism-ruby.min.js'
+        };
+        
+        // Fonction pour charger un script dynamiquement
+        function loadScript(url) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = url;
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+        
+        // Fonction pour charger une feuille de style dynamiquement
+        function loadStylesheet(url) {
+            return new Promise((resolve, reject) => {
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = url;
+                link.onload = resolve;
+                link.onerror = reject;
+                document.head.appendChild(link);
+            });
+        }
+        
+        // Initialisation asynchrone
+        async function init() {
+            try {
+                // Charger le thème
+                const themeName = themes[theme] || themes.default;
+                await loadStylesheet(`https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/${themeName}`);
+                
+                // Charger le langage si nécessaire
+                if (lang in languages) {
+                    await loadScript(`https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/${languages[lang]}`);
+                } else {
+                    console.warn(`Langage '${lang}' non supporté, la coloration syntaxique peut ne pas fonctionner.`);
+                }
+                
+                // Mise à jour du titre pour l'accessibilité
+                document.title = `Code ${lang} - Viewer`;
+                
+                // Application du code et du langage
+                const codeElement = document.querySelector('code');
+                codeElement.className = `language-${lang}`;
+                codeElement.textContent = code;
+                
+                // Appliquer la coloration syntaxique
+                Prism.highlightAll();
+            } catch (error) {
+                console.error("Erreur lors du chargement des ressources:", error);
+                document.querySelector('code').textContent = `Erreur: ${error.message}`;
+            }
+        }
+        
+        // Démarrer l'initialisation
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Convertisseur Code → HTML avec Thème Personnalisable</title>
+    <style>
+        body { font-family: system-ui; max-width: 800px; margin: 0 auto; padding: 20px; }
+        textarea, pre { width: 100%; height: 280px; border: 1px solid #ddd; padding: 10px; font-family: monospace; box-sizing: border-box; }
+        pre { background: #f5f5f5; overflow: auto; }
+        .controls { margin: 15px 0; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+        button { padding: 8px 12px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        h1 { color: #333; }
+        
+        /* Style pour l'éditeur de couleurs */
+        .color-editor {
+            margin: 15px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #f9f9f9;
+        }
+        
+        .color-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .color-name {
+            width: 120px;
+            font-size: 14px;
+        }
+        
+        .color-preview {
+            width: 24px;
+            height: 24px;
+            border: 1px solid #ccc;
+            margin-right: 10px;
+        }
+        
+        .color-input {
+            width: 100px;
+            padding: 4px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .color-sample {
+            margin-left: 10px;
+            padding: 3px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        
+        .toggle-colors {
+            background: #607d8b;
+            margin-left: auto;
+        }
+        
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 15px;
+        }
+        
+        .tab {
+            padding: 8px 16px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            margin-bottom: -1px;
+            border-radius: 4px 4px 0 0;
+        }
+        
+        .tab.active {
+            border: 1px solid #ddd;
+            border-bottom-color: white;
+            background: white;
+            font-weight: bold;
+        }
+        
+        .tabs-content > div {
+            display: none;
+        }
+        
+        .tabs-content > div.active {
+            display: block;
+        }
+        
+        .custom-theme-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+        
+        .theme-presets {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .theme-preset {
+            padding: 5px 10px;
+            background: #eee;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            border: 1px solid #ddd;
+        }
+        
+        .theme-preset:hover {
+            background: #e0e0e0;
+        }
+    </style>
+    <script>
+    // Thèmes de couleurs prédéfinis
+    const colorThemes = {
+        default: {
+            selector: '#690', // vert
+            punctuation: '#999', // gris
+            property: '#905', // magenta
+            comment: '#708090', // slate gris
+            string: '#690', // vert
+            keyword: '#07a', // bleu
+            function: '#DD4A68', // rouge
+            variable: '#e90', // orange
+            number: '#905', // magenta
+            background: '#f5f5f5',
+            fontFamily: 'Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace',
+            fontSize: '14px',
+            lineHeight: '1.5'
+        },
+        dark: {
+            selector: '#a6e22e', // vert clair
+            punctuation: '#f8f8f2', // blanc cassé
+            property: '#f92672', // rose
+            comment: '#75715e', // beige foncé
+            string: '#e6db74', // jaune
+            keyword: '#66d9ef', // bleu clair
+            function: '#fd971f', // orange
+            variable: '#fd971f', // orange
+            number: '#ae81ff', // violet
+            background: '#282a36',
+            fontFamily: 'Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace',
+            fontSize: '14px',
+            lineHeight: '1.5'
+        },
+        pastel: {
+            selector: '#8ec07c', // vert pastel
+            punctuation: '#928374', // gris pastel
+            property: '#d3869b', // mauve pastel
+            comment: '#928374', // gris pastel
+            string: '#b8bb26', // vert citron
+            keyword: '#83a598', // bleu pastel
+            function: '#fe8019', // orange pastel
+            variable: '#fabd2f', // jaune pastel
+            number: '#d3869b', // mauve pastel
+        },
+        monochrome: {
+            selector: '#555',
+            punctuation: '#777',
+            property: '#333',
+            comment: '#999',
+            string: '#444',
+            keyword: '#222',
+            function: '#444',
+            variable: '#555',
+            number: '#333',
+        }
+    };
+    
+    // Thème actif (commence avec celui par défaut)
+    let activeTheme = JSON.parse(JSON.stringify(colorThemes.default));
+    
+    async function generateInlineCodeHTML(code, language = 'css') {
+        // Charger Prism si nécessaire
+        await loadPrism(language);
+        
+        // Échapper HTML
+        const escaped = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        
+        // Conteneur temporaire
+        const temp = document.createElement('div');
+        temp.style.position = 'absolute';
+        temp.style.left = '-9999px';
+        temp.innerHTML = `<pre><code class="language-${language}">${escaped}</code></pre>`;
+        document.body.appendChild(temp);
+        
+        // Appliquer la coloration
+        Prism.highlightAllUnder(temp);
+        
+        // IMPORTANT: Préserver la structure HTML exacte de Prism
+        // mais remplacer les classes par des styles inline
+        const codeElement = temp.querySelector('code');
+        
+        // ÉTAPE 1: Ajouter des styles inline en fonction des classes des tokens
+        const tokens = codeElement.querySelectorAll('.token');
+        tokens.forEach(token => {
+            // Identifier le type de token à partir de sa classe
+            let tokenType = null;
+            const classList = Array.from(token.classList);
+            
+            if (classList.includes('selector') || classList.includes('tag')) tokenType = 'selector';
+            else if (classList.includes('punctuation')) tokenType = 'punctuation';
+            else if (classList.includes('property')) tokenType = 'property';
+            else if (classList.includes('comment')) tokenType = 'comment';
+            else if (classList.includes('string')) tokenType = 'string';
+            else if (classList.includes('keyword')) tokenType = 'keyword';
+            else if (classList.includes('function')) tokenType = 'function';
+            else if (classList.includes('variable')) tokenType = 'variable';
+            else if (classList.includes('number')) tokenType = 'number';
+            
+            // Appliquer la couleur du thème actif si un type est identifié
+            if (tokenType && activeTheme[tokenType]) {
+                token.setAttribute('style', `color:${activeTheme[tokenType]}`);
+                token.setAttribute('data-type', tokenType);  // Pour la traçabilité et le débogage
+            }
+        });
+        
+        // Appliquer les styles de fond et de police au bloc code/pre
+        const preElement = temp.querySelector('pre');
+        if (preElement) {
+            preElement.style.backgroundColor = activeTheme.background || '#f5f5f5';
+            preElement.style.fontFamily = activeTheme.fontFamily || 'monospace';
+            preElement.style.fontSize = activeTheme.fontSize || '14px';
+            preElement.style.lineHeight = activeTheme.lineHeight || '1.5';
+        }
+        
+        // ÉTAPE 2: Supprimer toutes les classes mais conserver la structure
+        const allElements = temp.querySelectorAll('*');
+        allElements.forEach(el => {
+            el.removeAttribute('class');
+        });
+        
+        // ÉTAPE 3: Récupérer le HTML avec la structure préservée
+        const html = temp.innerHTML;
+        
+        // Nettoyage
+        document.body.removeChild(temp);
+        
+        return html;
+    }
+
+    async function loadPrism(language) {
+        if (window.Prism) return;
+        
+        // Charger le core et le CSS
+        await Promise.all([
+            new Promise(resolve => {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js';
+                script.onload = resolve;
+                document.head.appendChild(script);
+            }),
+            new Promise(resolve => {
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = 'https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css';
+                link.onload = resolve;
+                document.head.appendChild(link);
+            })
+        ]);
+        
+        // Chargement du langage si nécessaire
+        if (!['html', 'css', 'javascript', 'js'].includes(language)) {
+            await new Promise(resolve => {
+                const script = document.createElement('script');
+                script.src = `https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-${language}.min.js`;
+                script.onload = resolve;
+                script.onerror = resolve;
+                document.head.appendChild(script);
+            });
+        }
+    }
+
+    async function convert() {
+        const code = document.getElementById('code').value;
+        const lang = document.getElementById('language').value;
+        const output = document.getElementById('output');
+        
+        try {
+            document.getElementById('convert-btn').disabled = true;
+            output.textContent = 'Conversion en cours...';
+            
+            const html = await generateInlineCodeHTML(code, lang);
+            output.textContent = html;
+            
+            document.getElementById('preview').innerHTML = html;
+            document.getElementById('convert-btn').disabled = false;
+        } catch (e) {
+            output.textContent = 'Erreur: ' + e;
+            document.getElementById('convert-btn').disabled = false;
+        }
+    }
+
+    function copyOutput() {
+        const output = document.getElementById('output');
+        navigator.clipboard.writeText(output.textContent)
+            .then(() => {
+                const btn = document.getElementById('copy-btn');
+                const original = btn.textContent;
+                btn.textContent = '✓ Copié!';
+                setTimeout(() => btn.textContent = original, 1500);
+            })
+            .catch(() => alert('Impossible de copier. Veuillez copier manuellement.'));
+    }
+    
+    function toggleColorEditor() {
+        const editor = document.getElementById('color-editor');
+        if (editor.style.display === 'none' || !editor.style.display) {
+            editor.style.display = 'block';
+            document.getElementById('toggle-colors-btn').textContent = 'Masquer l\'éditeur de couleurs';
+        } else {
+            editor.style.display = 'none';
+            document.getElementById('toggle-colors-btn').textContent = 'Personnaliser les couleurs';
+        }
+    }
+    
+    function updateColorPreview(input, previewId, sampleId, tokenType) {
+        const colorValue = input.value;
+        document.getElementById(previewId).style.backgroundColor = colorValue;
+        const sample = document.getElementById(sampleId);
+        sample.style.color = colorValue;
+        
+        // Mettre à jour le thème actif
+        activeTheme[tokenType] = colorValue;
+        
+        // Mettre à jour la prévisualisation si du code est déjà affiché
+        if (document.getElementById('preview').innerHTML) {
+            convert();
+        }
+    }
+    
+    function applyTheme(themeName) {
+        if (colorThemes[themeName]) {
+            // Copier le thème sélectionné
+            activeTheme = JSON.parse(JSON.stringify(colorThemes[themeName]));
+            
+            // Mettre à jour tous les contrôles de couleur avec les nouvelles valeurs
+            for (const [tokenType, color] of Object.entries(activeTheme)) {
+                const input = document.getElementById(`color-${tokenType}`);
+                if (input) {
+                    input.value = color;
+                    updateColorPreview(input, `preview-${tokenType}`, `sample-${tokenType}`, tokenType);
+                }
+            }
+            
+            // Mettre à jour la prévisualisation
+            if (document.getElementById('preview').innerHTML) {
+                convert();
+            }
+
+            // Mettre à jour les contrôles de style supplémentaires
+            if (activeTheme.background) {
+                document.getElementById('color-background').value = activeTheme.background;
+                document.getElementById('preview-background').style.backgroundColor = activeTheme.background;
+            }
+
+            if (activeTheme.fontFamily) {
+                const fontSelect = document.getElementById('font-family');
+                for (let i = 0; i < fontSelect.options.length; i++) {
+                    if (fontSelect.options[i].value === activeTheme.fontFamily) {
+                        fontSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            if (activeTheme.fontSize) {
+                const sizeSelect = document.getElementById('font-size');
+                for (let i = 0; i < sizeSelect.options.length; i++) {
+                    if (sizeSelect.options[i].value === activeTheme.fontSize) {
+                        sizeSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    
+    function saveCustomTheme() {
+        try {
+            localStorage.setItem('customCodeTheme', JSON.stringify(activeTheme));
+            alert('Thème personnalisé sauvegardé avec succès!');
+        } catch (e) {
+            alert('Erreur lors de la sauvegarde du thème: ' + e.message);
+        }
+    }
+    
+    function loadCustomTheme() {
+        try {
+            const saved = localStorage.getItem('customCodeTheme');
+            if (saved) {
+                activeTheme = JSON.parse(saved);
+                
+                // Mettre à jour les contrôles
+                for (const [tokenType, color] of Object.entries(activeTheme)) {
+                    const input = document.getElementById(`color-${tokenType}`);
+                    if (input) {
+                        input.value = color;
+                        updateColorPreview(input, `preview-${tokenType}`, `sample-${tokenType}`, tokenType);
+                    }
+                }
+                
+                // Mettre à jour la prévisualisation
+                if (document.getElementById('preview').innerHTML) {
+                    convert();
+                }
+                
+                alert('Thème personnalisé chargé avec succès!');
+            } else {
+                alert('Aucun thème personnalisé sauvegardé.');
+            }
+        } catch (e) {
+            alert('Erreur lors du chargement du thème: ' + e.message);
+        }
+    }
+    
+    function switchTab(tabId) {
+        // Désactiver tous les onglets et contenus
+        document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.tabs-content > div').forEach(content => content.classList.remove('active'));
+        
+        // Activer l'onglet et le contenu sélectionnés
+        document.getElementById(`tab-${tabId}`).classList.add('active');
+        document.getElementById(`content-${tabId}`).classList.add('active');
+    }
+
+    // Ajoutez ces fonctions près des autres fonctions de mise à jour
+    function updateBackgroundPreview(color) {
+        document.getElementById('preview-background').style.backgroundColor = color;
+        activeTheme.background = color;
+        
+        // Mettre à jour la prévisualisation
+        if (document.getElementById('preview').innerHTML) {
+            const preElement = document.getElementById('preview').querySelector('pre');
+            if (preElement) preElement.style.backgroundColor = color;
+        }
+    }
+
+    function updateFontPreview(fontFamily) {
+        activeTheme.fontFamily = fontFamily;
+        
+        // Mettre à jour la prévisualisation
+        if (document.getElementById('preview').innerHTML) {
+            const preElement = document.getElementById('preview').querySelector('pre');
+            if (preElement) preElement.style.fontFamily = fontFamily;
+        }
+    }
+
+    function updateFontSizePreview(fontSize) {
+        activeTheme.fontSize = fontSize;
+        
+        // Mettre à jour la prévisualisation
+        if (document.getElementById('preview').innerHTML) {
+            const preElement = document.getElementById('preview').querySelector('pre');
+            if (preElement) preElement.style.fontSize = fontSize;
+        }
+    }
+    </script>
+</head>
+<body>
+    <h1>Convertisseur Code → HTML avec Thème Personnalisable</h1>
+    <p>Génère du HTML avec styles inline pour les éditeurs qui filtrent les classes CSS.</p>
+    
+    <div class="controls">
+        <select id="language">
+            <option value="css">CSS</option>
+            <option value="html">HTML</option>
+            <option value="javascript">JavaScript</option>
+            <option value="python">Python</option>
+            <option value="bash">Bash</option>
+            <option value="sql">SQL</option>
+            <option value="php">PHP</option>
+        </select>
+        <button id="convert-btn" onclick="convert()">Convertir</button>
+        <button id="copy-btn" onclick="copyOutput()">Copier le code</button>
+        <button id="toggle-colors-btn" class="toggle-colors" onclick="toggleColorEditor()">Personnaliser les couleurs</button>
+    </div>
+    
+    <div id="color-editor" class="color-editor" style="display:none;">
+        <div class="tabs">
+            <div id="tab-themes" class="tab active" onclick="switchTab('themes')">Thèmes prédéfinis</div>
+            <div id="tab-colors" class="tab" onclick="switchTab('colors')">Couleurs individuelles</div>
+        </div>
+        
+        <div class="tabs-content">
+            <div id="content-themes" class="active">
+                <p>Sélectionnez un thème prédéfini ou personnalisez vos propres couleurs.</p>
+                <div class="theme-presets">
+                    <div class="theme-preset" onclick="applyTheme('default')">Thème par défaut</div>
+                    <div class="theme-preset" onclick="applyTheme('dark')">Thème sombre</div>
+                    <div class="theme-preset" onclick="applyTheme('pastel')">Thème pastel</div>
+                    <div class="theme-preset" onclick="applyTheme('monochrome')">Thème monochrome</div>
+                </div>
+                
+                <div class="custom-theme-actions">
+                    <button onclick="saveCustomTheme()">Sauvegarder le thème actuel</button>
+                    <button onclick="loadCustomTheme()">Charger le thème sauvegardé</button>
+                </div>
+            </div>
+            
+            <div id="content-colors">
+                <p>Personnalisez les couleurs pour chaque type d'élément syntaxique.</p>
+                
+                <!-- Éditeur de couleurs pour chaque type d'élément -->
+                <div class="color-row">
+                    <div class="color-name">Sélecteurs, Tags</div>
+                    <div id="preview-selector" class="color-preview" style="background-color: #690"></div>
+                    <input id="color-selector" type="text" class="color-input" value="#690" 
+                           oninput="updateColorPreview(this, 'preview-selector', 'sample-selector', 'selector')">
+                    <span id="sample-selector" class="color-sample" style="color: #690">.container, div</span>
+                </div>
+                
+                <div class="color-row">
+                    <div class="color-name">Ponctuation</div>
+                    <div id="preview-punctuation" class="color-preview" style="background-color: #999"></div>
+                    <input id="color-punctuation" type="text" class="color-input" value="#999" 
+                           oninput="updateColorPreview(this, 'preview-punctuation', 'sample-punctuation', 'punctuation')">
+                    <span id="sample-punctuation" class="color-sample" style="color: #999">{} () ; ,</span>
+                </div>
+                
+                <div class="color-row">
+                    <div class="color-name">Propriétés</div>
+                    <div id="preview-property" class="color-preview" style="background-color: #905"></div>
+                    <input id="color-property" type="text" class="color-input" value="#905" 
+                           oninput="updateColorPreview(this, 'preview-property', 'sample-property', 'property')">
+                    <span id="sample-property" class="color-sample" style="color: #905">display, color</span>
+                </div>
+                
+                <div class="color-row">
+                    <div class="color-name">Commentaires</div>
+                    <div id="preview-comment" class="color-preview" style="background-color: #708090"></div>
+                    <input id="color-comment" type="text" class="color-input" value="#708090" 
+                           oninput="updateColorPreview(this, 'preview-comment', 'sample-comment', 'comment')">
+                    <span id="sample-comment" class="color-sample" style="color: #708090">/* commentaire */</span>
+                </div>
+                
+                <div class="color-row">
+                    <div class="color-name">Chaînes</div>
+                    <div id="preview-string" class="color-preview" style="background-color: #690"></div>
+                    <input id="color-string" type="text" class="color-input" value="#690" 
+                           oninput="updateColorPreview(this, 'preview-string', 'sample-string', 'string')">
+                    <span id="sample-string" class="color-sample" style="color: #690">'texte' "exemple"</span>
+                </div>
+                
+                <div class="color-row">
+                    <div class="color-name">Mots-clés</div>
+                    <div id="preview-keyword" class="color-preview" style="background-color: #07a"></div>
+                    <input id="color-keyword" type="text" class="color-input" value="#07a" 
+                           oninput="updateColorPreview(this, 'preview-keyword', 'sample-keyword', 'keyword')">
+                    <span id="sample-keyword" class="color-sample" style="color: #07a">if, return, class</span>
+                </div>
+                
+                <div class="color-row">
+                    <div class="color-name">Fonctions</div>
+                    <div id="preview-function" class="color-preview" style="background-color: #DD4A68"></div>
+                    <input id="color-function" type="text" class="color-input" value="#DD4A68" 
+                           oninput="updateColorPreview(this, 'preview-function', 'sample-function', 'function')">
+                    <span id="sample-function" class="color-sample" style="color: #DD4A68">functionName()</span>
+                </div>
+                
+                <div class="color-row">
+                    <div class="color-name">Variables</div>
+                    <div id="preview-variable" class="color-preview" style="background-color: #e90"></div>
+                    <input id="color-variable" type="text" class="color-input" value="#e90" 
+                           oninput="updateColorPreview(this, 'preview-variable', 'sample-variable', 'variable')">
+                    <span id="sample-variable" class="color-sample" style="color: #e90">$var, myVariable</span>
+                </div>
+                
+                <div class="color-row">
+                    <div class="color-name">Nombres</div>
+                    <div id="preview-number" class="color-preview" style="background-color: #905"></div>
+                    <input id="color-number" type="text" class="color-input" value="#905" 
+                           oninput="updateColorPreview(this, 'preview-number', 'sample-number', 'number')">
+                    <span id="sample-number" class="color-sample" style="color: #905">42, 3.14</span>
+                </div>
+
+                <div class="color-row">
+                    <div class="color-name">Arrière-plan</div>
+                    <div id="preview-background" class="color-preview" style="background-color: #f5f5f5"></div>
+                    <input id="color-background" type="text" class="color-input" value="#f5f5f5" 
+                           oninput="updateBackgroundPreview(this.value)">
+                </div>
+
+                <div class="color-row">
+                    <div class="color-name">Police</div>
+                    <select id="font-family" class="color-input" style="width: 200px" onchange="updateFontPreview(this.value)">
+                        <option value="Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace">Consolas/Monaco</option>
+                        <option value="'Source Code Pro', monospace">Source Code Pro</option>
+                        <option value="'Fira Code', monospace">Fira Code</option>
+                        <option value="'Roboto Mono', monospace">Roboto Mono</option>
+                        <option value="monospace">Monospace standard</option>
+                    </select>
+                </div>
+
+                <div class="color-row">
+                    <div class="color-name">Taille</div>
+                    <select id="font-size" class="color-input" onchange="updateFontSizePreview(this.value)">
+                        <option value="12px">12px</option>
+                        <option value="14px" selected>14px</option>
+                        <option value="16px">16px</option>
+                        <option value="18px">18px</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <textarea id="code" spellcheck="false">.container {
+    display: flex;
+    flex-direction: column;
+    margin: 0 auto;
+    max-width: 800px;
+}
+
+/* Styles pour le titre */
+h1 {
+    color: #2c3e50;
+    font-family: 'Arial', sans-serif;
+    text-align: center;
+}</textarea>
+    
+    <h3>HTML généré</h3>
+    <pre id="output"></pre>
+    
+    <h3>Prévisualisation</h3>
+    <div id="preview"></div>
+    
+    <script>
+        // Charger exemples par défaut
+        document.getElementById('language').addEventListener('change', function() {
+            const examples = {
+                css: `.container {\n    display: flex;\n    flex-direction: column;\n    margin: 0 auto;\n    max-width: 800px;\n}\n\n/* Styles pour le titre */\nh1 {\n    color: #2c3e50;\n    font-family: 'Arial', sans-serif;\n    text-align: center;\n}`,
+                html: `<!DOCTYPE html>\n<html>\n<head>\n    <title>Page simple</title>\n</head>\n<body>\n    <h1>Titre principal</h1>\n    <p>Un paragraphe d'exemple avec du <strong>texte en gras</strong>.</p>\n</body>\n</html>`,
+                javascript: `// Fonction simple\nfunction saluer(nom) {\n    return \`Bonjour, \${nom}!\`;\n}\n\n// Utilisation\nconsole.log(saluer('monde'));\n\n// Classe d'exemple\nclass Personne {\n    constructor(nom) {\n        this.nom = nom;\n    }\n}`,
+                python: `# Définition d'une fonction\ndef fibonacci(n):\n    a, b = 0, 1\n    for _ in range(n):\n        yield a\n        a, b = b, a + b\n\n# Utilisation\nfor n in fibonacci(5):\n    print(n)`,
+                bash: `#!/bin/bash\n\n# Variables\nNOM="monde"\n\n# Affichage\necho "Bonjour, $NOM!"`,
+                sql: `-- Création d'une table\nCREATE TABLE users (\n    id INT PRIMARY KEY,\n    nom VARCHAR(50)\n);\n\n-- Insertion\nINSERT INTO users VALUES (1, 'Jean');`,
+                php: `<?php\n// Fonction simple\nfunction saluer($nom) {\n    return "Bonjour, $nom!";\n}\n\n// Utilisation\necho saluer("monde");\n?>`
+            };
+            document.getElementById('code').value = examples[this.value] || '';
+            
+            // Si du code est déjà prévisualisé, actualiser avec le nouvel exemple
+            if (document.getElementById('preview').innerHTML) {
+                convert();
+            }
+        });
+        
+        // Charger le sélecteur de couleurs HTML5
+        document.querySelectorAll('.color-input').forEach(input => {
+            input.type = 'color';
+        });
+    </script>
+</body>
+</html>

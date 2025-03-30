@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Convertisseur Netpbm vers Base64</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            line-height: 1.5;
+            padding: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+            background: #f5f5f5;
+        }
+
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #1a1a1a;
+            margin-bottom: 20px;
+        }
+
+        .input-section, .output-section {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .format-info {
+            font-size: 0.875rem;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+            resize: vertical;
+        }
+
+        .error {
+            color: #dc2626;
+            font-size: 0.875rem;
+            margin-top: 8px;
+            display: none;
+        }
+
+        .preview-container {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .preview-container h2 {
+            margin-bottom: 12px;
+            color: #333;
+        }
+
+        .preview-image {
+            border: 1px solid #ccc;
+            padding: 12px;
+            background: #f8f8f8;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .preview-image img {
+            image-rendering: pixelated;
+            max-width: 100%;
+            height: auto;
+        }
+
+        .output-container {
+            position: relative;
+        }
+
+        .img-tag {
+            width: 100%;
+            padding: 12px;
+            background: #f8f8f8;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            padding: 6px 12px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .copy-btn:hover {
+            background: #1d4ed8;
+        }
+
+        .color-picker {
+            position: fixed;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            pointer-events: none;
+            display: none;
+            z-index: 1000;
+        }
+
+        .hash-container {
+            margin-top: 12px;
+            padding: 12px;
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        .hash-label {
+            color: #0369a1;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .hash-value {
+            color: #0c4a6e;
+            font-size: 1rem;
+            word-break: break-all;
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 12px;
+            }
+            
+            .container {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Convertisseur Netpbm vers Base64</h1>
+        
+        <div class="input-section" id="input-section">
+            <label for="input">Code Netpbm (formats P1, P2, P3)</label>
+            <div class="format-info">
+                P1: Portable Bitmap (noir et blanc)<br>
+                P2: Portable Graymap (niveaux de gris)<br>
+                P3: Portable Pixmap (couleur RGB)
+            </div>
+            <textarea id="input" placeholder="Collez votre code Netpbm ici..."></textarea>
+            <div class="error" id="error"></div>
+        </div>
+
+        <div class="preview-container" id="preview-container">
+            <div class="preview-image">
+                <h2>Prévisualisation</h2>
+                <img id="preview" alt="Preview" style="width: 280px">
+                <div class="color-picker" id="color-picker"></div>
+            </div>
+
+            <div class="hash-container">
+                <div class="hash-label">Code de vérification unique :</div>
+                <div class="hash-value" id="hash-value"></div>
+            </div>
+
+            <div class="output-container" id="output-section">
+                <h2>Balise IMG avec Base64</h2>
+                <pre class="img-tag" id="img-tag"></pre>
+                <button class="copy-btn" id="copy-btn">Copier</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function normalizeNetpbm(code) {
+            // Supprime tous les commentaires commençant par #
+            let normalized = code.replace(/#[^\n]*/g, '');
+            
+            // Supprime les espaces multiples, tabs, retours à la ligne
+            normalized = normalized.replace(/\s+/g, ' ').trim();
+            
+            // Sépare les parties principales
+            const parts = normalized.split(' ');
+            
+            // Vérifie le format
+            const format = parts[0];
+            if (!['P1', 'P2', 'P3'].includes(format)) {
+                throw new Error("Format invalide");
+            }
+            
+            // Extrait les dimensions
+            const width = parseInt(parts[1]);
+            const height = parseInt(parts[2]);
+            
+            // Pour P2 et P3
+            let startIndex = 3;
+            let maxVal = "1";
+            if (format !== 'P1') {
+                maxVal = parts[3];
+                startIndex = 4;
+            }
+            
+            // Reconstruit le code normalisé
+            let result = `${format}\n${width} ${height}\n`;
+            if (format !== 'P1') {
+                result += `${maxVal}\n`;
+            }
+            
+            // Ajoute les valeurs avec un formatage cohérent
+            const values = parts.slice(startIndex);
+            if (format === 'P3') {
+                // Groupe par triplets RGB
+                for (let i = 0; i < values.length; i += 3) {
+                    result += `${values[i]} ${values[i+1]} ${values[i+2]}`;
+                    if (i + 3 < values.length) {
+                        result += i % 9 === 6 ? '\n' : ' ';
+                    }
+                }
+            } else {
+                // P1 ou P2 : une valeur par pixel
+                for (let i = 0; i < values.length; i++) {
+                    result += values[i];
+                    if (i + 1 < values.length) {
+                        result += i % width === width-1 ? '\n' : ' ';
+                    }
+                }
+            }
+            
+            return result;
+        }
+
+        async function generateImageHash(code) {
+            try {
+                const normalizedCode = normalizeNetpbm(code);
+                const msgBuffer = new TextEncoder().encode(normalizedCode);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 8);
+            } catch (e) {
+                throw new Error("Code Netpbm invalide");
+            }
+        }
+
+        function parseImageData(content) {
+            // [Code parseImageData précédent inchangé...]
+            const lines = content
+                .trim()
+                .split('\n')
+                .map(line => line.trim())
+                .filter(line => line && !line.startsWith('#'));
+            
+            if(lines.length < 2) throw new Error("Format invalide");
+            
+            const format = lines[0];
+            if(!['P1', 'P2', 'P3'].includes(format)) {
+                throw new Error("Format non supporté (uniquement P1, P2, P3)");
+            }
+            
+            const [width, height] = lines[1].split(/\s+/).map(Number);
+            if(isNaN(width) || isNaN(height)) {
+                throw new Error("Dimensions invalides");
+            }
+
+            let maxVal = 1;
+            let dataStartIndex = 2;
+            if(format !== 'P1') {
+                maxVal = parseInt(lines[2]);
+                if(isNaN(maxVal)) throw new Error("Valeur maximale invalide");
+                dataStartIndex = 3;
+            }
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            const imageData = ctx.createImageData(width, height);
+            const data = imageData.data;
+            
+            const values = lines
+                .slice(dataStartIndex)
+                .join(' ')
+                .split(/\s+/)
+                .map(v => parseInt(v));
+            
+            let valueIndex = 0;
+            const totalPixels = width * height;
+
+            for(let pixelIndex = 0; pixelIndex < totalPixels; pixelIndex++) {
+                const dataIndex = pixelIndex * 4;
+
+                if(format === 'P1') {
+                    const val = values[pixelIndex];
+                    const color = val === 1 ? 0 : 255;
+                    data[dataIndex] = color;
+                    data[dataIndex + 1] = color;
+                    data[dataIndex + 2] = color;
+                    data[dataIndex + 3] = 255;
+                }
+                else if(format === 'P2') {
+                    const gray = Math.round((values[pixelIndex] / maxVal) * 255);
+                    data[dataIndex] = gray;
+                    data[dataIndex + 1] = gray;
+                    data[dataIndex + 2] = gray;
+                    data[dataIndex + 3] = 255;
+                }
+                else if(format === 'P3') {
+                    if(valueIndex + 2 >= values.length) {
+                        throw new Error("Données RGB incomplètes");
+                    }
+                    const r = Math.round((values[valueIndex++] / maxVal) * 255);
+                    const g = Math.round((values[valueIndex++] / maxVal) * 255);
+                    const b = Math.round((values[valueIndex++] / maxVal) * 255);
+                    data[dataIndex] = r;
+                    data[dataIndex + 1] = g;
+                    data[dataIndex + 2] = b;
+                    data[dataIndex + 3] = 255;
+                }
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+            return canvas.toDataURL('image/png');
+        }
+
+        function updateURL(content) {
+            if (!content.trim()) return;
+            
+            const base64Content = btoa(content);
+            const newURL = new URL(window.location.href);
+            newURL.searchParams.set('code', base64Content);
+            
+            // Mise à jour de l'URL sans recharger la page
+            window.history.replaceState({}, '', newURL.toString());
+        }
+
+        // Elements
+        const input = document.getElementById('input');
+        const error = document.getElementById('error');
+        const previewContainer = document.getElementById('preview-container');
+        const preview = document.getElementById('preview');
+        const imgTag = document.getElementById('img-tag');
+        const copyBtn = document.getElementById('copy-btn');
+        const colorPicker = document.getElementById('color-picker');
+        const hashValue = document.getElementById('hash-value');
+
+        // Paramètres URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const prefilledCode = urlParams.get('code');
+        const enablePicker = urlParams.get('picker') === 'true';
+
+        // Pré-remplissage du code si fourni
+        if (prefilledCode) {
+            try {
+                input.value = atob(prefilledCode);
+                handleInput(input.value);
+            } catch (e) {
+                error.textContent = "Code en Base64 invalide";
+                error.style.display = 'block';
+            }
+        }
+
+        async function handleInput(content) {
+            if(!content.trim()) {
+                error.style.display = 'none';
+                previewContainer.style.display = 'none';
+                return;
+            }
+            
+            try {
+                const dataUrl = parseImageData(content);
+                preview.src = dataUrl;
+                imgTag.textContent = `<img src="${dataUrl}" alt="Converted image" />`;
+                error.style.display = 'none';
+                previewContainer.style.display = 'block';
+                
+                // Mise à jour de l'URL
+                updateURL(content);
+                
+                // Génération et affichage du hash
+                const imageHash = await generateImageHash(content);
+                hashValue.textContent = imageHash;
+                
+            } catch (err) {
+                error.textContent = err.message;
+                error.style.display = 'block';
+                previewContainer.style.display = 'none';
+            }
+        }
+
+        // Event listeners
+        input.addEventListener('input', function() {
+            handleInput(this.value);
+        });
+
+        copyBtn.addEventListener('click', function() {
+            navigator.clipboard.writeText(imgTag.textContent)
+                .then(() => alert('Copié dans le presse-papiers !'))
+                .catch(() => alert('Erreur lors de la copie'));
+        });
+
+        // Configuration de la pipette de couleurs si activée
+        if (enablePicker) {
+            let canvas = document.createElement('canvas');
+            let ctx = canvas.getContext('2d');
+
+            preview.addEventListener('load', function() {
+                canvas.width = preview.naturalWidth;
+                canvas.height = preview.naturalHeight;
+                ctx.drawImage(preview, 0, 0);
+            });
+
+            preview.addEventListener('mousemove', function(e) {
+                const rect = preview.getBoundingClientRect();
+                const x = (e.clientX - rect.left) * (preview.naturalWidth / rect.width);
+                const y = (e.clientY - rect.top) * (preview.naturalHeight / rect.height);
+                
+                const pixel = ctx.getImageData(Math.floor(x), Math.floor(y), 1, 1).data;
+                colorPicker.textContent = `RGB(${pixel[0]}, ${pixel[1]}, ${pixel[2]})`;
+                colorPicker.style.display = 'block';
+                colorPicker.style.left = (e.clientX + 10) + 'px';
+                colorPicker.style.top = (e.clientY + 10) + 'px';
+            });
+
+            preview.addEventListener('mouseout', function() {
+                colorPicker.style.display = 'none';
+            });
+        }
+    </script>
+</body>
+</html>
