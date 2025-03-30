@@ -316,7 +316,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>Netpbm - Editeur léger en ligne pour images pbm, pgm et ppm</h1>
+        <h2>Netpbm</h2>
         <div class="header-controls">
             <button class="theme-toggle" id="theme-toggle">🌙</button>
         </div>
@@ -329,7 +329,8 @@
     <template id="input-section-template">
         <div class="input-section" id="input-section">
             <label for="input">Code Netpbm (formats P1, P2, P3)</label>
-            <div class="format-info">
+            <div class="format-info" style="display: none;" id="format-info">
+                Formats pris en charge :<br>
                 P1: Portable Bitmap (noir et blanc)<br>
                 P2: Portable Graymap (niveaux de gris)<br>
                 P3: Portable Pixmap (couleur RGB)
@@ -342,7 +343,7 @@
     <template id="preview-section-template">
         <div class="preview-container" id="preview-container">
             <div class="preview-image">
-                <h2>Prévisualisation</h2>
+                
                 <img id="preview" alt="Preview" style="width: 280px">
                 <div class="color-picker" id="color-picker"></div>
             </div>
@@ -540,7 +541,7 @@
             },
             input: { 
                 id: "input-section", 
-                title: "Entrée", 
+                title: "Éditeur", 
                 templateId: "input-section-template" 
             },
             preview: { 
@@ -555,7 +556,7 @@
             },
             output: { 
                 id: "output-section", 
-                title: "Sortie", 
+                title: "Exportation pour HTML", 
                 templateId: "output-section-template" 
             }
         };
